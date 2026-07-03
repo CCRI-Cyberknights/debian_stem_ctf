@@ -110,9 +110,9 @@ def pip_install():
     run(["python3", "-m", "venv", str(venv_dir)])
     venv_pip = venv_dir / "bin" / "pip"
     
-    print("📚 Installing Flask and MarkupSafe safely inside the venv...")
+    print("📚 Installing Flask and MarkupSafe, and Markdown safely inside the venv...")
     run([str(venv_pip), "install", "--upgrade", "pip"])
-    run([str(venv_pip), "install", "flask", "markupsafe"])
+    run([str(venv_pip), "install", "flask", "markupsafe", "markdown"])
 
 # ---------- zsteg ----------
 def install_zsteg():

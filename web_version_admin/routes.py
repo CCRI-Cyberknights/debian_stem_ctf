@@ -6,6 +6,7 @@ except ImportError:
 
 import os
 import sys
+import shutil
 import subprocess
 import markdown
 import json
@@ -234,8 +235,17 @@ def run_script(challenge_id):
         return jsonify({"status": "error", "message": "Challenge not found"}), 404
 
     script_path = selectedChallenge.getScript()
+    
+    # Dynamic terminal lookup optimized for XFCE environment targets
+    terminal = shutil.which("xfce4-terminal") or shutil.which("x-terminal-emulator")
+    if not terminal:
+        return jsonify({"status": "error", "message": "No suitable terminal emulator discovered on host."}), 500
+
     try:
-        subprocess.Popen(['gnome-terminal', '--', 'python3', script_path])
+        if "xfce4-terminal" in terminal:
+            subprocess.Popen([terminal, "--", sys.executable, script_path])
+        else:
+            subprocess.Popen([terminal, "-e", f"{sys.executable} {script_path}"])
         return jsonify({"status": "success", "message": "Helper script started"})
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to run script: {e}"}), 500
@@ -256,24 +266,26 @@ def run_coach(challenge_id):
     if not os.path.exists(script_path):
         return jsonify({"status": "error", "message": "Coach script not found for this challenge."}), 404
 
+    # Dynamic terminal lookup optimized for XFCE environment targets
+    terminal = shutil.which("xfce4-terminal") or shutil.which("x-terminal-emulator")
+    if not terminal:
+        return jsonify({"status": "error", "message": "No suitable terminal emulator discovered on host."}), 500
+
     try:
-        subprocess.Popen([
-            "mate-terminal",
-            "--geometry=90x35+50+100",
-            "--title=Coach Mode: " + selectedChallenge.getName(),
-            "--",
-            "python3", script_path
-        ])
-        return jsonify({"status": "success", "message": "Coach terminal launched"})
-    except FileNotFoundError:
-        try:
-             subprocess.Popen([
-                "x-terminal-emulator",
-                "-e", f"python3 {script_path}"
+        if "xfce4-terminal" in terminal:
+            subprocess.Popen([
+                terminal,
+                "--geometry=90x35+50+100",
+                "--title=Coach Mode: " + selectedChallenge.getName(),
+                "--",
+                sys.executable, script_path
             ])
-             return jsonify({"status": "success", "message": "Coach terminal launched (fallback)"})
-        except Exception as e:
-             return jsonify({"status": "error", "message": f"Terminal not found: {e}"}), 500
+        else:
+            subprocess.Popen([
+                terminal,
+                "-e", f"{sys.executable} {script_path}"
+            ])
+        return jsonify({"status": "success", "message": "Coach terminal launched"})
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to run coach: {e}"}), 500
 

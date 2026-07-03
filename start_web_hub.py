@@ -26,7 +26,7 @@ def launch_process(cmd, log_file):
         )
         print("✅ Web server responded on /healthz.")
     except subprocess.CalledProcessError:
-        # try root path as fallback probe
+        # Try root path as fallback probe
         try:
             subprocess.check_call(["curl", "-s", "http://127.0.0.1:5000"],
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -37,20 +37,29 @@ def launch_process(cmd, log_file):
 
 def open_browser():
     print("🌐 Opening http://127.0.0.1:5000 ...")
+    # Prioritize standard xdg-open for XFCE desktop environment defaults
+    if shutil.which("xdg-open"):
+        subprocess.Popen(["xdg-open", "http://127.0.0.1:5000"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return
     firefox = shutil.which("firefox")
     if firefox:
         subprocess.Popen([firefox, "--new-window", "http://127.0.0.1:5000"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=os.setpgrp)
         return
-    if shutil.which("xdg-open"):
-        subprocess.Popen(["xdg-open", "http://127.0.0.1:5000"],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    else:
-        print("❌ No browser launcher found. Open manually: http://127.0.0.1:5000")
+    print("❌ No browser launcher found. Open manually: http://127.0.0.1:5000")
 
 def main():
-    print("🚀 Starting the CCRI CTF Hub...\n")
     project_root = find_project_root()
+
+    # 🛡️ SELF-CORRECTING VIRTUAL ENVIRONMENT GUARD
+    # Dynamically find the local sandbox interpreter relative to project folder
+    venv_python = os.path.join(project_root, ".venv", "bin", "python3")
+    if os.path.exists(venv_python) and os.path.abspath(sys.executable) != os.path.abspath(venv_python):
+        # Hot-swap the running process seamlessly to execute inside the sandbox
+        os.execv(venv_python, [venv_python] + sys.argv)
+
+    print("🚀 Starting the CCRI CTF Hub...\n")
 
     pyz_path      = os.path.join(project_root, "ccri_ctf.pyz")
     admin_server  = os.path.join(project_root, "web_version_admin", "server.py")

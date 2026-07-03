@@ -12,8 +12,7 @@
   <div class="landing-container" style="margin-top: 0;">
 
     <h1 style="margin-top: 0; margin-bottom: 10px;">🚀 CCRI CTF {{ base_mode|capitalize }} Hub</h1>
-    <p class="landing-subtitle" style="margin-top: 0; margin-bottom: 15px;">Welcome to the Training Hub. Select your
-      mission profile below to begin:</p>
+    <p class="landing-subtitle" style="margin-top: 0; margin-bottom: 15px;">Welcome to the Training Hub. Select your mission profile below to begin:</p>
 
     <div class="grid">
       {% if 'regular' in available_modes %}
@@ -25,8 +24,9 @@
           and an interactive <strong>Coach Mode</strong> to guide you step-by-step.
           Learn real tools and see cybersecurity concepts in action.
         </p>
-        <a href="{{ url_for('main.set_mode', mode='regular') }}">
-          <button class="view-btn">🚀 Start Exploration Track</button>
+        <!-- Converted anchor link to act directly as the semantic button element -->
+        <a href="{{ url_for('main.set_mode', mode='regular') }}" class="view-btn-link text-center">
+          🚀 Start Exploration Track
         </a>
       </div>
       {% endif %}
@@ -40,8 +40,9 @@
           You are dropped into the environment with only standard Linux tools and your wits.
           Find the flags using pure skill.
         </p>
-        <a href="{{ url_for('main.set_mode', mode='solo') }}">
-          <button class="view-btn">🚀 Start Solo Track</button>
+        <!-- Converted anchor link to act directly as the semantic button element -->
+        <a href="{{ url_for('main.set_mode', mode='solo') }}" class="view-btn-link text-center">
+          🚀 Start Solo Track
         </a>
       </div>
       {% endif %}
@@ -61,8 +62,7 @@
     </div>
 
     <div>
-      <img src="{{ url_for('static', filename='assets/CyberKnights_2.png') }}" alt="CyberKnights Logo"
-        class="landing-logo" style="margin-top: 10px;" />
+      <img src="{{ url_for('static', filename='assets/CyberKnights_2.png') }}" alt="CyberKnights Logo" class="landing-logo" style="margin-top: 10px;" />
     </div>
   </div>
 </body>

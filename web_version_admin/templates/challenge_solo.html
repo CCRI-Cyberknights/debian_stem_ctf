@@ -10,14 +10,16 @@
 <body data-challenge-id="{{ challenge.id }}" data-url-index="{{ url_for('main.index') }}"
   data-url-open-folder="{{ url_for('main.open_folder', challenge_id=challenge.id) }}"
   data-url-submit-flag="{{ url_for('main.submit_flag', challenge_id=challenge.id) }}"
-  data-url-linux-tips="{{ url_for('main.linux_basics') }}" data-base-mode="{{ base_mode }}" data-mode="{{ mode }}">
+  data-url-linux-tips="{{ url_for('main.linux_basics') }}" 
+  data-base-mode="{{ base_mode }}" 
+  data-mode="{{ mode }}">
 
-  <h1>{{ challenge.name }} - 🔥 Solo Mode</h1>
+  <h1>{{ challenge.name }} [🔥 Solo Mode]</h1>
 
   <div class="actions">
-    <button type="button" onclick="goBackToIndex();">⬅ Back to Challenges</button>
-    <button type="button" onclick="openFolder();">📂 Open Folder</button>
-    <button type="button" onclick="openLinuxTips();" style="background-color: #17a2b8; border-color: #17a2b8;">
+    <button type="button" class="back-to-index-btn">⬅ Back to Challenges</button>
+    <button type="button" class="open-challenge-folder-btn">📂 Open Folder</button>
+    <button type="button" id="linux-cheat-sheet-btn" style="background-color: #17a2b8; border-color: #17a2b8;">
       🐧 Linux Cheat Sheet
     </button>
   </div>
@@ -39,8 +41,7 @@
       <ul>
         {% for file in files %}
         <li>
-          <a href="{{ url_for('main.get_challenge_file', challenge_id=challenge.id, filename=file) }}"
-            target="_blank">{{ file }}</a>
+          <a href="{{ url_for('main.get_challenge_file', challenge_id=challenge.id, filename=file) }}" target="_blank">{{ file }}</a>
         </li>
         {% endfor %}
       </ul>
@@ -49,9 +50,8 @@
       {% endif %}
     </div>
 
-    <div class="challenge-wrapper-section"
-      style="text-align: center; border: none; background: none; padding-top: 10px;">
-      <button type="button" onclick="openFolder();" style="font-size: 1.1em; padding: 10px 20px;">
+    <div class="challenge-wrapper-section" style="text-align: center; border: none; background: none; padding-top: 10px;">
+      <button type="button" class="open-challenge-folder-btn" style="font-size: 1.1em; padding: 10px 20px;">
         📂 Open Folder
       </button>
     </div>
@@ -62,74 +62,104 @@
       </div>
       <div class="input-wrapper">
         <input type="text" id="flagInput" name="flagInput" class="input" placeholder="Enter flag (CCRI-AAAA-1111)" />
-        <button type="button" class="Subscribe-btn" onclick="submitFlag();">
-          Submit
-        </button>
+        <button type="button" id="submit-flag-btn" class="Subscribe-btn">Submit</button>
         <p id="flagStatus"></p>
       </div>
     </div>
 
     <hr />
     <div class="actions bottom-buttons">
-      <button type="button" onclick="goBackToIndex();">⬅ Back to Challenges</button>
+      <button type="button" class="back-to-index-btn">⬅ Back to Challenges</button>
     </div>
   </div>
 
   <script>
-    const challengeId = document.body.dataset.challengeId;
-    const baseMode = document.body.dataset.baseMode;
-    const mode = document.body.dataset.mode;
-    const storageKey = `${baseMode}-${mode}-${challengeId}`;
-    const urlIndex = document.body.dataset.urlIndex;
-    const urlOpenFolder = document.body.dataset.urlOpenFolder;
-    const urlSubmitFlag = document.body.dataset.urlSubmitFlag;
-    const urlLinuxTips = document.body.dataset.urlLinuxTips;
+    document.addEventListener("DOMContentLoaded", () => {
+      // 📝 Extract environmental configuration maps from the DOM context
+      const challengeId   = document.body.dataset.challengeId;
+      const baseMode      = document.body.dataset.baseMode;
+      const mode          = document.body.dataset.mode;
+      const storageKey    = `${baseMode}-${mode}-${challengeId}`;
+      const urlIndex      = document.body.dataset.urlIndex;
+      const urlOpenFolder = document.body.dataset.urlOpenFolder;
+      const urlSubmitFlag = document.body.dataset.urlSubmitFlag;
+      const urlLinuxTips  = document.body.dataset.urlLinuxTips;
 
-    function goBackToIndex() { window.location.href = urlIndex; }
+      // 🔍 DOM Node Registration
+      const backButtons    = document.querySelectorAll(".back-to-index-btn");
+      const openFolderBtns = document.querySelectorAll(".open-challenge-folder-btn");
+      const cheatSheetBtn  = document.getElementById("linux-cheat-sheet-btn");
+      const submitFlagBtn  = document.getElementById("submit-flag-btn");
+      const flagInput      = document.getElementById("flagInput");
+      const flagStatus     = document.getElementById("flagStatus");
 
-    function openFolder() {
-      fetch(urlOpenFolder, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.status !== 'success') console.error('Failed to open folder:', data.message);
+      // 🔄 Navigation and External Cheat Sheet Resource Handlers
+      backButtons.forEach(btn => {
+        btn.addEventListener("click", () => { window.location.href = urlIndex; });
+      });
+
+      if (cheatSheetBtn) {
+        cheatSheetBtn.addEventListener("click", () => { window.open(urlLinuxTips, '_blank'); });
+      }
+
+      // 📂 Folder Interaction Wrapper
+      const runHelper = (url) => {
+        fetch(url, { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status !== 'success') console.error('Orchestration failure:', data.message);
+          });
+      };
+
+      openFolderBtns.forEach(btn => {
+        btn.addEventListener("click", () => runHelper(urlOpenFolder));
+      });
+
+      // 🏁 Flag Processing Validation Interface
+      const processFlagSubmission = () => {
+        const flag = flagInput.value.trim();
+        if (!flag) return;
+
+        fetch(urlSubmitFlag, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ flag: flag })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'correct') {
+              flagStatus.textContent = '🎉 Correct flag!';
+              flagStatus.style.color = 'green';
+              localStorage.setItem(storageKey, flag);
+            } else if (data.status === 'incorrect') {
+              flagStatus.textContent = '❌ Incorrect flag.';
+              flagStatus.style.color = 'red';
+            } else {
+              flagStatus.textContent = '⚠️ Error: ' + data.message;
+              flagStatus.style.color = 'orange';
+            }
+          });
+      };
+
+      if (submitFlagBtn) {
+        submitFlagBtn.addEventListener("click", processFlagSubmission);
+      }
+
+      // Bind Enter key inside input container for smoother submissions
+      if (flagInput) {
+        flagInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") processFlagSubmission();
         });
-    }
+      }
 
-    function openLinuxTips() {
-      window.open(urlLinuxTips, '_blank');
-    }
-
-    function submitFlag() {
-      const flag = document.getElementById('flagInput').value.trim();
-      fetch(urlSubmitFlag, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flag: flag })
-      })
-        .then(res => res.json())
-        .then(data => {
-          const status = document.getElementById('flagStatus');
-          if (data.status === 'correct') {
-            status.textContent = '🎉 Correct flag!';
-            status.style.color = 'green';
-            localStorage.setItem(storageKey, flag);
-          } else if (data.status === 'incorrect') {
-            status.textContent = '❌ Incorrect flag.';
-            status.style.color = 'red';
-          } else {
-            status.textContent = '⚠️ Error: ' + data.message;
-            status.style.color = 'orange';
-          }
-        });
-    }
-
-    const savedFlag = localStorage.getItem(storageKey);
-    if (savedFlag) {
-      document.getElementById("flagInput").value = savedFlag;
-      const status = document.getElementById("flagStatus");
-      status.textContent = "🎉 Correct flag!";
-      status.style.color = "green";
-    }
+      // 💾 Client-Side Progress Re-Hydration
+      const savedFlag = localStorage.getItem(storageKey);
+      if (savedFlag && flagInput && flagStatus) {
+        flagInput.value = savedFlag;
+        flagStatus.textContent = "🎉 Correct flag!";
+        flagStatus.style.color = "green";
+      }
+    });
   </script>
 </body>
 

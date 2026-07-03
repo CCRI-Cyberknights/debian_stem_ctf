@@ -1,10 +1,11 @@
 import os
 import sys
+from pathlib import Path
 
 # ---------- PATH RESOLUTION ----------
 ASSETS_DIR_OVERRIDE = os.environ.get("CCRI_ASSETS_DIR")
 
-def detect_assets_dir():
+def detect_assets_dir() -> Path:
     """
     Priority:
       1) CCRI_ASSETS_DIR (env)
@@ -12,19 +13,24 @@ def detect_assets_dir():
       3) directory of this source file (dev/admin tree)
     """
     if ASSETS_DIR_OVERRIDE:
-        return os.path.abspath(ASSETS_DIR_OVERRIDE)
+        return Path(ASSETS_DIR_OVERRIDE).resolve()
 
-    pyz_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    candidate = os.path.join(pyz_dir, "web_version")
-    if os.path.isdir(candidate):
+    # Locate directory relative to the executed script/zipapp
+    pyz_dir = Path(sys.argv[0]).resolve().parent
+    candidate = pyz_dir / "web_version"
+    if candidate.is_dir():
         return candidate
 
-    return os.path.dirname(os.path.abspath(__file__))
+    # Fallback to the physical location of this file inside the source tree
+    return Path(__file__).resolve().parent
 
-server_dir = detect_assets_dir()
-BASE_DIR   = os.path.abspath(os.path.join(server_dir, ".."))
-template_folder = os.path.join(server_dir, "templates")
-static_folder   = os.path.join(server_dir, "static")
+# Establish foundational project paths using clean Path properties
+server_dir      = detect_assets_dir()
+BASE_DIR        = server_dir.parent
+
+# Flask explicitly expects string path inputs for directory registrations
+template_folder = str(server_dir / "templates")
+static_folder   = str(server_dir / "static")
 
 # ---------- MODE CONFIGURATION ----------
 DEBUG_MODE = os.environ.get("CCRI_DEBUG", "0") == "1"
@@ -32,9 +38,10 @@ DEBUG_MODE = os.environ.get("CCRI_DEBUG", "0") == "1"
 # Base Mode: Admin vs Student
 base_mode = os.environ.get("CCRI_CTF_MODE", "").strip().lower()
 if not base_mode:
-    base_mode = "admin" if os.path.basename(server_dir) == "web_version_admin" else "student"
+    # server_dir.name handles the string extraction natively (replacing basename)
+    base_mode = "admin" if server_dir.name == "web_version_admin" else "student"
 
-has_admin = os.path.isdir(os.path.join(BASE_DIR, "web_version_admin"))
+has_admin = (BASE_DIR / "web_version_admin").is_dir()
 if base_mode == "admin" and not has_admin:
     print("⚠️ Admin mode requested but admin assets missing; forcing STUDENT mode.")
     base_mode = "student"
@@ -42,14 +49,14 @@ if base_mode == "admin" and not has_admin:
 os.environ["CCRI_CTF_MODE"] = base_mode
 
 # Folders containing challenge data
-GUIDED_DIR = os.path.join(BASE_DIR, "challenges")
-SOLO_DIR   = os.path.join(BASE_DIR, "challenges_solo")
+GUIDED_DIR = str(BASE_DIR / "challenges")
+SOLO_DIR   = str(BASE_DIR / "challenges_solo")
 
 def detect_available_modes():
     modes = []
-    if os.path.isdir(GUIDED_DIR):
+    if Path(GUIDED_DIR).is_dir():
         modes.append("regular")
-    if os.path.isdir(SOLO_DIR):
+    if Path(SOLO_DIR).is_dir():
         modes.append("solo")
     return modes
 

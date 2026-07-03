@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
 import json
-import os
 import re
-import config  # Import path configuration
+import os
+from pathlib import Path
+import config  # Import unified path configuration
 from Challenge import Challenge
 
 class ChallengeList:
@@ -21,25 +23,20 @@ class ChallengeList:
         self.numOfChallenges = 0
         self._encoded_flags = {}  # id -> encoded flag exactly as read from JSON
 
-        # === Path Resolution via Config ===
-        # If the path is absolute, use it. Otherwise, assume it's inside server_dir.
-        if os.path.isabs(challenges_file):
-            self.challenges_path = challenges_file
+        # === Path Resolution via Pathlib ===
+        target_path = Path(challenges_file)
+        if target_path.is_absolute():
+            self.challenges_path = target_path
         else:
-            self.challenges_path = os.path.join(config.server_dir, challenges_file)
+            self.challenges_path = Path(config.server_dir) / challenges_file
 
-        # === Determine Solo vs Guided based on filename ===
-        if os.path.basename(self.challenges_path) == "challenges_solo.json":
-            self.solo_mode = True
-        else:
-            self.solo_mode = False
+        # === Determine Solo vs Guided based on filename properties ===
+        self.solo_mode = (self.challenges_path.name == "challenges_solo.json")
 
         # === Environment mode (student/admin) for persistence behavior ===
         self.mode = os.environ.get("CCRI_CTF_MODE", "student").lower()
         print(f"🔍 Environment mode detected: {self.mode}")
 
-        # Note: self.challenges_root isn't strictly needed for loading since Challenge()
-        # uses config.SOLO_DIR/GUIDED_DIR directly, but we can set it for reference.
         self.challenges_root = config.SOLO_DIR if self.solo_mode else config.GUIDED_DIR
 
         print(f"📖 Checking for challenges file at: {self.challenges_path}")
@@ -53,13 +50,13 @@ class ChallengeList:
         Sort key that tries to respect numeric prefixes like '01_', '12_', etc.
         Falls back to lowercase alphabetical if no leading number.
         """
-        m = ChallengeList._num_prefix.match(ch_id)
+        m = ChallengeList._num_prefix.match(str(ch_id))
         if m:
             try:
-                return (0, int(m.group(1)), ch_id.lower())
+                return (0, int(m.group(1)), str(ch_id).lower())
             except ValueError:
                 pass
-        return (1, ch_id.lower())
+        return (1, str(ch_id).lower())
 
     # -------- Loading / Saving --------
 
@@ -70,8 +67,8 @@ class ChallengeList:
             FileNotFoundError: if JSON file missing.
             json.JSONDecodeError: if JSON invalid or schema issues detected.
         """
-        if not os.path.exists(self.challenges_path):
-            raise FileNotFoundError(self.challenges_path)
+        if not self.challenges_path.exists():
+            raise FileNotFoundError(str(self.challenges_path))
 
         try:
             with open(self.challenges_path, "r", encoding="utf-8") as f:
@@ -96,11 +93,11 @@ class ChallengeList:
             for req in ("name", "folder", "flag"):
                 if req not in entry:
                     raise json.JSONDecodeError(
-                        f"Missing required field '{req}' in challenge '{key}'.", "", 0
+                         f"Missing required field '{req}' in challenge '{key}'.", "", 0
                     )
 
             # Remember the encoded flag exactly as it appears in file
-            self._encoded_flags[key] = entry["flag"]
+            self._encoded_flags[str(key)] = entry["flag"]
 
             challenge = Challenge(
                 id=key,
@@ -110,7 +107,7 @@ class ChallengeList:
                 flag=entry["flag"],       # Challenge decodes at runtime in student mode
                 script=entry.get("script"),
                 solo_mode=self.solo_mode,
-                has_coach=entry.get("has_coach", False)  # <--- PASS TO CONSTRUCTOR
+                has_coach=entry.get("has_coach", False)
             )
 
             print(f"➡️  Challenge #{order}: {challenge.getName()} (ID={key})")
@@ -125,8 +122,8 @@ class ChallengeList:
         return self.challenges
 
     def get_challenge_by_id(self, challenge_id):
-        """Retrieve a Challenge object by its ID."""
-        return next((c for c in self.challenges if c.getId() == challenge_id), None)
+        """Retrieve a Challenge object by its ID securely checking string format."""
+        return next((c for c in self.challenges if c.getId() == str(challenge_id)), None)
 
     def get_list_of_ids(self):
         """Return a list of all challenge IDs."""
@@ -141,7 +138,7 @@ class ChallengeList:
         data = {}
 
         for c in self.challenges:
-            folder_name = os.path.basename(c.getFolder())
+            folder_name = Path(c.getFolder()).name
 
             # Preserve encoded flag in student mode
             encoded_from_file = self._encoded_flags.get(c.getId())
@@ -155,9 +152,9 @@ class ChallengeList:
                 "flag": flag_to_write,
             }
 
-            # Only persist script for guided (regular) sets, normalize to basename
+            # Only persist script for guided (regular) sets, normalize to basename using Pathlib
             if not self.solo_mode and c.getScript():
-                entry["script"] = os.path.basename(c.getScript())
+                entry["script"] = Path(c.getScript()).name
 
             # Persist the coach setting
             if c.getHasCoach():

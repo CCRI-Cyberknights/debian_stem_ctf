@@ -1,4 +1,5 @@
 import threading
+import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # === Simulated Open Ports ===
@@ -78,6 +79,12 @@ SOLO_SERVICE_NAMES = {
 GUIDED_ALL_PORTS = {**GUIDED_JUNK_RESPONSES, **GUIDED_FAKE_FLAGS}
 SOLO_ALL_PORTS = {**SOLO_JUNK_RESPONSES, **SOLO_FAKE_FLAGS}
 
+# 🛡️ SO_REUSEADDR ENFORCED INTERFACE POOL
+# Subclassing standard HTTPServer allows us to hardcode option flags on the socket
+# layer BEFORE bind operations execute, entirely mitigating TIME_WAIT resource locks.
+class RapidReuseHTTPServer(HTTPServer):
+    allow_reuse_address = True
+
 # === Dynamic HTTP Handler Factory ===
 def PortHandlerFactory(response_map, service_map):
     class CustomPortHandler(BaseHTTPRequestHandler):
@@ -92,27 +99,42 @@ def PortHandlerFactory(response_map, service_map):
             self.end_headers()
             try:
                 self.wfile.write((banner + response).encode("utf-8"))
-            except BrokenPipeError:
+            except (BrokenPipeError, ConnectionResetError):
+                # Captured ConnectionResetError to absorb sudden, aggressive scans from Nmap
                 pass
 
         def log_message(self, format, *args):
+            # Suppress default request-by-request terminal logging output
             return
     return CustomPortHandler
 
-def start_fake_service(port, response_map, service_map):
+def start_fake_service(port, response_map, service_map) -> bool:
     try:
-        server = HTTPServer(('0.0.0.0', port), PortHandlerFactory(response_map, service_map))
+        # Utilize the custom socket reuse wrapper class
+        server = RapidReuseHTTPServer(('0.0.0.0', port), PortHandlerFactory(response_map, service_map))
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        print(f"🚁️  Simulated service running on port {port} ({service_map.get(port, 'http')})")
+        return True
     except OSError as e:
-        print(f"❌ Could not bind port {port}: {e}")
+        logging.warning(f"❌ Could not bind port {port}: {e}")
+        return False
 
 def start_all_services(available_modes):
     """Starts fake services based on which modes are available."""
+    launched_ports = []
+
     if "regular" in available_modes:
         for port in GUIDED_ALL_PORTS.keys():
-            start_fake_service(port, GUIDED_ALL_PORTS, GUIDED_SERVICE_NAMES)
+            if start_fake_service(port, GUIDED_ALL_PORTS, GUIDED_SERVICE_NAMES):
+                launched_ports.append(port)
 
     if "solo" in available_modes:
         for port in SOLO_ALL_PORTS.keys():
-            start_fake_service(port, SOLO_ALL_PORTS, SOLO_SERVICE_NAMES)
+            if start_fake_service(port, SOLO_ALL_PORTS, SOLO_SERVICE_NAMES):
+                launched_ports.append(port)
+
+    # Output a concise, clean summary block instead of terminal spam
+    if launched_ports:
+        launched_ports.sort()
+        ports_str = ", ".join(map(str, launched_ports))
+        print(f"🚁 Successfully deployed {len(launched_ports)} mock service listeners across ports:")
+        print(f"   [{ports_str}]")

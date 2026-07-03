@@ -18,11 +18,13 @@
 </head>
 
 <body data-total-challenges="{{ challenges.challenges | length }}"
-  data-challenge-ids='{{ challenges.get_list_of_ids() | tojson }}' data-challenge-base-url="{{ url_for('main.index') }}"
-  data-mode="{{ mode }}" data-base-mode="{{ base_mode }}">
+  data-challenge-ids='{{ challenges.get_list_of_ids() | tojson }}' 
+  data-challenge-base-url="{{ url_for('main.index') }}"
+  data-mode="{{ mode }}" 
+  data-base-mode="{{ base_mode }}">
 
   <div class="top-right">
-    <button onclick="goToLanding();" class="home-btn">🏠 Back to Hub</button>
+    <button id="hub-back-btn" class="home-btn">🏠 Back to Hub</button>
   </div>
 
   <h1>🚀 {{ list_title }}</h1>
@@ -31,16 +33,13 @@
   <div class="mode-intro guided-intro">
     <h2>🔭 Exploration Mode Overview</h2>
     <p>
-      In this track, each challenge folder contains two different scripts. You generally run <strong>one or the
-        other</strong>:
+      In this track, each challenge folder contains two different scripts. You generally run <strong>one or the other</strong>:
     </p>
     <p>
-      <strong>Exploration Mode</strong> (via the helper/solver script) is a high-level demo of what a CTF is. It
-      performs the actual work behind the scenes—running real commands on real files—to show you the result immediately.
+      <strong>Exploration Mode</strong>, accessed via the helper/solver script, is a high-level demo of what a CTF is. It performs the actual work behind the scenes, running real commands on real files, to show you the result immediately.
     </p>
     <p>
-      On the other hand, <strong>Coach Mode</strong> is an interactive,
-      command-by-command guide that walks you through the steps to solve the puzzle yourself.
+      On the other hand, <strong>Coach Mode</strong> is an interactive, command-by-command guide that walks you through the steps to solve the puzzle yourself.
     </p>
   </div>
   {% elif mode == 'solo' %}
@@ -55,20 +54,17 @@
   </div>
   {% endif %}
 
-  <h2 id="progress-counter" class="progress">
-    {{ challenges.completed_challenges | length }} of {{ challenges.challenges | length }} challenges completed
-  </h2>
+  <!-- Initialized with a clean loading placeholder state to mitigate layout flashing -->
+  <h2 id="progress-counter" class="progress">Calculating challenge progress...</h2>
 
-  <div class="grid">
+  <div class="grid" id="challenges-grid">
     {% for challenge in challenges.challenges %}
     <div class="challenge-card{% if challenge.complete %} completed{% endif %}" id="{{ challenge.id }}">
       <h3>{{ challenge.ch_number }}. {{ challenge.name }}</h3>
       {% if challenge.complete %}
       <p class="challenge-status">✅ Completed</p>
       {% else %}
-      <button class="view-btn" type="button"
-        data-challenge-url="{{ url_for('main.challenge_view', challenge_id=challenge.id) }}"
-        onclick="startChallenge(this);">
+      <button class="view-btn" type="button" data-challenge-url="{{ url_for('main.challenge_view', challenge_id=challenge.id) }}">
         🚀 Start Challenge
       </button>
       {% endif %}
@@ -77,22 +73,33 @@
   </div>
 
   <script>
-    function goToLanding() {
-      window.location.href = "{{ url_for('main.landing_page') }}";
-    }
-
-    function startChallenge(button) {
-      const url = button.dataset.challengeUrl;
-      window.location.href = url;
-    }
-
     document.addEventListener("DOMContentLoaded", () => {
       const body = document.body;
       const total = parseInt(body.dataset.totalChallenges);
       const challengeIDs = JSON.parse(body.dataset.challengeIds);
       const storagePrefix = `${body.dataset.baseMode}-${body.dataset.mode}`;
+      const backBtn = document.getElementById("hub-back-btn");
+      const grid = document.getElementById("challenges-grid");
       let completed = 0;
 
+      // 🏠 Global Hub Navigation Event Listener
+      if (backBtn) {
+        backBtn.addEventListener("click", () => {
+          window.location.href = "{{ url_for('main.landing_page') }}";
+        });
+      }
+
+      // 🚀 Performance-Optimized Event Delegation for Challenge Cards
+      if (grid) {
+        grid.addEventListener("click", (event) => {
+          const button = event.target.closest(".view-btn");
+          if (button && button.dataset.challengeUrl) {
+            window.location.href = button.dataset.challengeUrl;
+          }
+        });
+      }
+
+      // 💾 Client-Side LocalStorage Hydration Layer
       challengeIDs.forEach((challengeId) => {
         const savedFlag = localStorage.getItem(`${storagePrefix}-${challengeId}`);
         if (savedFlag) {
@@ -111,8 +118,9 @@
           }
         }
       });
-      document.getElementById("progress-counter").textContent =
-        `${completed} of ${total} challenges completed`;
+
+      // Instantly inject the correct state to replace the loading placeholder
+      document.getElementById("progress-counter").textContent = `${completed} of ${total} challenges completed`;
     });
   </script>
 </body>

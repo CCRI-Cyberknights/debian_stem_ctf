@@ -11,14 +11,15 @@
   data-url-open-folder="{{ url_for('main.open_folder', challenge_id=challenge.id) }}"
   data-url-run-script="{{ url_for('main.run_script', challenge_id=challenge.id) }}"
   data-url-run-coach="{{ url_for('main.run_coach', challenge_id=challenge.id) }}"
-  data-url-submit-flag="{{ url_for('main.submit_flag', challenge_id=challenge.id) }}" data-base-mode="{{ base_mode }}"
+  data-url-submit-flag="{{ url_for('main.submit_flag', challenge_id=challenge.id) }}" 
+  data-base-mode="{{ base_mode }}"
   data-mode="{{ mode }}">
 
-  <h1>{{ challenge.name }} - 🔭 Exploration Mode</h1>
+  <h1>{{ challenge.name }} [🔭 Exploration Mode]</h1>
 
   <div class="actions">
-    <button type="button" onclick="goBackToIndex();">⬅ Back to Challenges</button>
-    <button type="button" onclick="runHelper('open');">📂 Open Folder</button>
+    <button type="button" class="back-to-index-btn">⬅ Back to Challenges</button>
+    <button type="button" class="open-challenge-folder-btn">📂 Open Folder</button>
   </div>
 
   <hr />
@@ -38,8 +39,7 @@
       <ul>
         {% for file in files %}
         <li>
-          <a href="{{ url_for('main.get_challenge_file', challenge_id=challenge.id, filename=file) }}"
-            target="_blank">{{ file }}</a>
+          <a href="{{ url_for('main.get_challenge_file', challenge_id=challenge.id, filename=file) }}" target="_blank">{{ file }}</a>
         </li>
         {% endfor %}
       </ul>
@@ -48,20 +48,16 @@
       {% endif %}
     </div>
 
-    <div class="challenge-wrapper-section"
-      style="text-align: center; border: none; background: none; padding-top: 10px;">
-
-      <button type="button" onclick="runHelper('run');" style="font-size: 1.1em; padding: 10px 20px;">
+    <div class="challenge-wrapper-section" style="text-align: center; border: none; background: none; padding-top: 10px;">
+      <button id="launch-explorer-btn" type="button" style="font-size: 1.1em; padding: 10px 20px;">
         🚀 Launch Explorer Mode
       </button>
 
       {% if challenge.has_coach %}
-      <button id="run-coach-btn" type="button" onclick="runCoach();" class="coach-btn"
-        style="font-size: 1.1em; padding: 10px 20px; margin-left: 15px;">
+      <button id="run-coach-btn" type="button" class="coach-btn" style="font-size: 1.1em; padding: 10px 20px; margin-left: 15px;">
         🎓 Launch Coach Mode
       </button>
       {% endif %}
-
     </div>
 
     <div class="challenge-wrapper-footer">
@@ -70,100 +66,135 @@
       </div>
       <div class="input-wrapper">
         <input type="text" id="flagInput" name="flagInput" class="input" placeholder="Enter flag (CCRI-AAAA-1111)" />
-        <button type="button" class="Subscribe-btn" onclick="submitFlag();">Submit</button>
+        <button type="button" id="submit-flag-btn" class="Subscribe-btn">Submit</button>
         <p id="flagStatus"></p>
       </div>
     </div>
 
     <hr />
     <div class="actions bottom-buttons">
-      <button type="button" onclick="goBackToIndex();">⬅ Back to Challenges</button>
-      <button type="button" onclick="runHelper('open');">📂 Open Folder</button>
+      <button type="button" class="back-to-index-btn">⬅ Back to Challenges</button>
+      <button type="button" class="open-challenge-folder-btn">📂 Open Folder</button>
     </div>
   </div>
 
   <script>
-    const challengeId = document.body.dataset.challengeId;
-    const baseMode = document.body.dataset.baseMode;
-    const mode = document.body.dataset.mode;
-    const storageKey = `${baseMode}-${mode}-${challengeId}`;
-    const urlIndex = document.body.dataset.urlIndex;
-    const urlOpenFolder = document.body.dataset.urlOpenFolder;
-    const urlRunScript = document.body.dataset.urlRunScript;
-    const urlRunCoach = document.body.dataset.urlRunCoach; // New URL
-    const urlSubmitFlag = document.body.dataset.urlSubmitFlag;
+    document.addEventListener("DOMContentLoaded", () => {
+      // 📝 Extract environmental configuration maps from the DOM context
+      const challengeId  = document.body.dataset.challengeId;
+      const baseMode     = document.body.dataset.baseMode;
+      const mode         = document.body.dataset.mode;
+      const storageKey   = `${baseMode}-${mode}-${challengeId}`;
+      const urlIndex       = document.body.dataset.urlIndex;
+      const urlOpenFolder  = document.body.dataset.urlOpenFolder;
+      const urlRunScript   = document.body.dataset.urlRunScript;
+      const urlRunCoach    = document.body.dataset.urlRunCoach;
+      const urlSubmitFlag  = document.body.dataset.urlSubmitFlag;
 
-    function goBackToIndex() { window.location.href = urlIndex; }
+      // 🔍 DOM Node Registration
+      const backButtons    = document.querySelectorAll(".back-to-index-btn");
+      const openFolderBtns = document.querySelectorAll(".open-challenge-folder-btn");
+      const explorerBtn    = document.getElementById("launch-explorer-btn");
+      const coachBtn       = document.getElementById("run-coach-btn");
+      const submitFlagBtn  = document.getElementById("submit-flag-btn");
+      const flagInput      = document.getElementById("flagInput");
+      const flagStatus     = document.getElementById("flagStatus");
 
-    function runHelper(action) {
-      const url = action === 'open' ? urlOpenFolder : urlRunScript;
-      fetch(url, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.status !== 'success') console.error('Failed:', data.message);
+      // 🔄 Navigation Handlers
+      backButtons.forEach(btn => {
+        btn.addEventListener("click", () => { window.location.href = urlIndex; });
+      });
+
+      // 📂 Folder and Script Interaction Wrapper
+      const runHelper = (url) => {
+        fetch(url, { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status !== 'success') console.error('Orchestration failure:', data.message);
+          });
+      };
+
+      openFolderBtns.forEach(btn => {
+        btn.addEventListener("click", () => runHelper(urlOpenFolder));
+      });
+
+      if (explorerBtn) {
+        explorerBtn.addEventListener("click", () => runHelper(urlRunScript));
+      }
+
+      // 🎓 Anti-Spam Coach Mode Terminal Handler
+      if (coachBtn) {
+        coachBtn.addEventListener("click", () => {
+          const originalText = coachBtn.innerText;
+          coachBtn.innerText = "Launching...";
+          coachBtn.disabled = true;
+
+          fetch(urlRunCoach, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+              if (data.status === 'success') {
+                console.log("Coach terminal launched.");
+              } else {
+                alert("Error launching coach: " + data.message);
+              }
+              setTimeout(() => {
+                coachBtn.innerText = originalText;
+                coachBtn.disabled = false;
+              }, 2000);
+            })
+            .catch(err => {
+              console.error("Error:", err);
+              coachBtn.innerText = "Error";
+              coachBtn.disabled = false;
+            });
         });
-    }
+      }
 
-    // New Function to handle Coach Mode
-    function runCoach() {
-      const btn = document.getElementById('run-coach-btn');
-      const originalText = btn.innerText;
+      // 🏁 Flag Processing Validation Interface
+      const processFlagSubmission = () => {
+        const flag = flagInput.value.trim();
+        if (!flag) return;
 
-      btn.innerText = "Launching...";
-      btn.disabled = true;
-
-      fetch(urlRunCoach, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.status === 'success') {
-            console.log("Coach terminal launched.");
-          } else {
-            alert("Error launching coach: " + data.message);
-          }
-          // Reset button after short delay so they don't spam it
-          setTimeout(() => {
-            btn.innerText = originalText;
-            btn.disabled = false;
-          }, 2000);
+        fetch(urlSubmitFlag, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ flag: flag })
         })
-        .catch(err => {
-          console.error("Error:", err);
-          btn.innerText = "Error";
-          btn.disabled = false;
-        });
-    }
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'correct') {
+              flagStatus.textContent = '🎉 Correct flag!';
+              flagStatus.style.color = 'green';
+              localStorage.setItem(storageKey, flag);
+            } else if (data.status === 'incorrect') {
+              flagStatus.textContent = '❌ Incorrect flag.';
+              flagStatus.style.color = 'red';
+            } else {
+              flagStatus.textContent = '⚠️ Error: ' + data.message;
+              flagStatus.style.color = 'orange';
+            }
+          });
+      };
 
-    function submitFlag() {
-      const flag = document.getElementById('flagInput').value.trim();
-      fetch(urlSubmitFlag, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flag: flag })
-      })
-        .then(res => res.json())
-        .then(data => {
-          const status = document.getElementById('flagStatus');
-          if (data.status === 'correct') {
-            status.textContent = '🎉 Correct flag!';
-            status.style.color = 'green';
-            localStorage.setItem(storageKey, flag);
-          } else if (data.status === 'incorrect') {
-            status.textContent = '❌ Incorrect flag.';
-            status.style.color = 'red';
-          } else {
-            status.textContent = '⚠️ Error: ' + data.message;
-            status.style.color = 'orange';
-          }
-        });
-    }
+      if (submitFlagBtn) {
+        submitFlagBtn.addEventListener("click", processFlagSubmission);
+      }
 
-    const savedFlag = localStorage.getItem(storageKey);
-    if (savedFlag) {
-      document.getElementById("flagInput").value = savedFlag;
-      const status = document.getElementById("flagStatus");
-      status.textContent = "🎉 Correct flag!";
-      status.style.color = "green";
-    }
+      // Bind Enter key inside input container for smoother submissions
+      if (flagInput) {
+        flagInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") processFlagSubmission();
+        });
+      }
+
+      // 💾 Client-Side Progress Re-Hydration
+      const savedFlag = localStorage.getItem(storageKey);
+      if (savedFlag && flagInput && flagStatus) {
+        flagInput.value = savedFlag;
+        flagStatus.textContent = "🎉 Correct flag!";
+        flagStatus.style.color = "green";
+      }
+    });
   </script>
 </body>
 

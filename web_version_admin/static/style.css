@@ -1,571 +1,559 @@
+/* =========================================
+   Core Elements & Typography
+   ========================================= */
 body {
-	font-family: Arial, sans-serif;
-	background: #292524;
-	margin: 0;
-	padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #292524;
+    margin: 0;
+    padding: 20px;
 }
 
 h1 {
-	text-align: center;
-	color: #fff;
+    text-align: center;
 }
 
 h1,
 p,
 h2 {
-	color: #ffffff;
+    color: #ffffff;
 }
 
 a {
-	color: #f3e600;
-	text-decoration: none;
+    color: #f3e600;
+    text-decoration: none;
 }
 
 a:hover {
-	color: #f3e7004b;
-	text-decoration: underline;
+    color: #f3e7004b;
+    text-decoration: underline;
 }
 
 a:visited {
-	color: #6a009b;
+    color: #6a009b;
 }
 
-/* ===========================
+/* =========================================
    Global Utilities
-   =========================== */
+   ========================================= */
 .text-center {
-	width: 100%;
-	text-align: center;
+    width: 100%;
+    text-align: center;
 }
 
 .top-right {
-	position: absolute;
-	top: 20px;
-	right: 20px;
+    position: absolute;
+    top: 20px;
+    right: 20px;
 }
 
-/* ===========================
-   Challenges grid (Main Index)
-   =========================== */
-
+/* =========================================
+   Grid Configurations
+   ========================================= */
 #challenges-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-	gap: 15px;
-	margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
 }
 
 .grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-	gap: 15px;
-	margin-top: 20px;
-	margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+    margin-bottom: 10px;
 }
 
-/* ===========================
-   Challenge cards
-   =========================== */
-
+/* =========================================
+   Challenge Cards Layout
+   ========================================= */
 .challenge-card {
-	background: transparent;
-	border: 2px solid #ccc;
-	color: #f3e600;
-	padding: 15px;
-	border-radius: 8px;
-	box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-	position: relative;
-	text-align: center;
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
-	backdrop-filter: blur(3px);
+    background: transparent;
+    border: 2px solid #ccc;
+    color: #f3e600;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    position: relative;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    backdrop-filter: blur(3px);
 }
 
 .challenge-card:hover {
-	transform: scale(1.03);
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transform: scale(1.03);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .challenge-card.completed {
-	background-color: transparent;
-	border: 2px solid #4caf50;
-	backdrop-filter: blur(3px);
-	box-shadow: none;
+    background-color: transparent;
+    border: 2px solid #4caf50;
+    backdrop-filter: blur(3px);
+    box-shadow: none;
 }
 
 .challenge-card.completed::after {
-	content: none;
+    content: none;
 }
 
 .challenge-status {
-	font-weight: bold;
-	color: #4caf50;
-	font-size: 1em;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	gap: 0.4em;
-	margin-top: 10px;
+    font-weight: bold;
+    color: #4caf50;
+    font-size: 1em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4em;
+    margin-top: 10px;
 }
 
 .progress {
-	font-weight: bold;
-	margin-bottom: 10px;
+    font-weight: bold;
+    margin-bottom: 10px;
 }
 
-/* ===========================
-   Buttons (Actions & Navigation)
-   =========================== */
-
+/* =========================================
+   Buttons & Links (Actions & Navigation)
+   ========================================= */
 .view-btn,
-.home-btn {
-	margin: 8px;
-	padding: 10px 16px;
-	border: none;
-	border-radius: 6px;
-	background: #1e1e1e;
-	color: #fff;
-	font-size: 1em;
-	cursor: pointer;
-	transition: background 0.3s ease;
+.home-btn,
+.view-btn-link {
+    margin: 8px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #1e1e1e;
+    color: #fff;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    box-sizing: border-box;
+}
+
+/* Ensures anchor links using button styles present correctly */
+.view-btn-link {
+    display: inline-block;
+    text-decoration: none;
+    text-align: center;
 }
 
 .view-btn:hover,
-.home-btn:hover {
-	background: linear-gradient(135deg, #6a009b, #48006a);
+.home-btn:hover,
+.view-btn-link:hover {
+    background: linear-gradient(135deg, #6a009b, #48006a);
+    color: #ffffff;
+    text-decoration: none;
 }
 
 .actions {
-	margin: 15px 0;
+    margin: 15px 0;
 }
 
 .actions button {
-	margin-right: 10px;
-	padding: 0 16px;
-	height: 3em;
-	border: none;
-	border-radius: 15px;
-	background-color: #ffffff;
-	color: #000000;
-	cursor: pointer;
-	font-weight: 500;
-	font-size: 0.95em;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	transition: background 0.2s ease, color 0.2s ease, transform 0.08s ease;
+    margin-right: 10px;
+    padding: 0 16px;
+    height: 3em;
+    border: none;
+    border-radius: 15px;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.95em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.08s ease;
 }
 
 .actions.bottom-buttons {
-	margin-top: 30px;
+    margin-top: 30px;
 }
 
 .actions.bottom-buttons button {
-	font-size: 0.9em;
-	height: 2.6em;
-	padding: 0 12px;
+    font-size: 0.9em;
+    height: 2.6em;
+    padding: 0 12px;
 }
 
 .Subscribe-btn {
-	height: 100%;
-	padding: 0 16px;
-	border: none;
-	border-radius: 15px;
-	background-color: #ffffff;
-	color: #000000;
-	cursor: pointer;
-	font-weight: 500;
-	overflow: hidden;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	position: relative;
-	transition: background 0.2s ease, color 0.2s ease, transform 0.08s ease;
+    height: 100%;
+    padding: 0 16px;
+    border: none;
+    border-radius: 15px;
+    background-color: #ffffff;
+    color: #000000;
+    cursor: pointer;
+    font-weight: 500;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.08s ease;
 }
 
 .actions button:hover,
 .Subscribe-btn:hover {
-	background-color: #e6e6e6;
-	color: #000000;
+    background-color: #e6e6e6;
+    color: #000000;
 }
 
 .actions button:active,
 .Subscribe-btn:active {
-	transform: scale(0.97);
+    transform: scale(0.97);
 }
 
-/* ===========================
-   Challenge Wrapper Layout
-   =========================== */
-
+/* =========================================
+   Challenge Execution Framework Wrapper
+   ========================================= */
 #challenge-wrapper {
-	background: #1e1e1e;
-	color: #f8f8f2;
-	padding: 20px;
-	border-radius: 6px;
-	margin-top: 20px;
-	overflow-x: auto;
-	font-family: system-ui, -apple-system, sans-serif;
-	line-height: 1.6;
-	white-space: normal;
-	word-wrap: break-word;
-	min-width: 24em;
-	max-width: 80em;
-	margin-left: auto;
-	margin-right: auto;
-	display: flex;
-	flex-direction: column;
+    background: #1e1e1e;
+    color: #f8f8f2;
+    padding: 20px;
+    border-radius: 6px;
+    margin-top: 20px;
+    overflow-x: auto;
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    white-space: normal;
+    word-wrap: break-word;
+    min-width: 24em;
+    max-width: 80em;
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .challenge-wrapper-footer {
-	margin-left: auto;
-	margin-right: auto;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-/* ===========================
-   Input Fields
-   =========================== */
-
+/* =========================================
+   Input Validation Interfaces
+   ========================================= */
 #flagInput {
-	width: 300px;
-	padding: 5px;
+    width: 300px;
+    padding: 5px;
 }
 
 #flagStatus {
-	margin-top: 10px;
-	font-weight: bold;
+    margin-top: 10px;
+    font-weight: bold;
 }
 
 .input-wrapper {
-	width: fit-content;
-	height: 45px;
-	border-radius: 20px;
-	padding: 5px;
-	box-sizing: content-box;
-	display: flex;
-	align-items: center;
-	background-color: #292524;
+    width: fit-content;
+    height: 45px;
+    border-radius: 20px;
+    padding: 5px;
+    box-sizing: content-box;
+    display: flex;
+    align-items: center;
+    background-color: #292524;
 }
 
 .input {
-	max-width: 225px;
-	height: 100%;
-	border: none;
-	outline: none;
-	padding-left: 15px;
-	background-color: #292524;
-	color: #50ff16ff;
-	font-size: 1em;
+    max-width: 225px;
+    height: 100%;
+    border: none;
+    outline: none;
+    padding-left: 15px;
+    background-color: #292524;
+    color: #50ff16ff;
+    font-size: 1em;
 }
 
-/* ===========================
-   Markdown / README styling
-   =========================== */
-
+/* =========================================
+   Markdown Component Interpretations
+   ========================================= */
 .readme {
-	background: #1e1e1e;
-	color: #f8f8f2;
-	padding: 15px 0px;
-	border-radius: 6px;
-	margin-top: 10px;
-	overflow-x: auto;
-	font-family: system-ui, -apple-system, sans-serif;
-	line-height: 1.6;
-	white-space: normal;
-	word-wrap: break-word;
+    background: #1e1e1e;
+    color: #f8f8f2;
+    padding: 15px 0px;
+    border-radius: 6px;
+    margin-top: 10px;
+    overflow-x: auto;
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 .readme h1,
 .readme h2,
 .readme h3 {
-	margin-top: 1em;
-	margin-bottom: 0.5em;
-	color: #eaeaea;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: #eaeaea;
 }
 
 .readme code {
-	background: #eaeaea;
-	color: #272822;
-	padding: 2px 4px;
-	border-radius: 4px;
-	font-family: monospace;
+    background: #eaeaea;
+    color: #272822;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: monospace;
 }
 
 .readme pre {
-	background: #272822;
-	color: #f8f8f2;
-	padding: 10px;
-	border-radius: 5px;
-	overflow-x: auto;
+    background: #272822;
+    color: #f8f8f2;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
 }
 
 .readme table {
-	width: 100%;
-	border-collapse: collapse;
-	margin: 1em 0;
-	font-size: 0.95em;
-	background-color: #1e1e1e;
-	color: #f8f8f2;
-	border: 1px solid #444;
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: 0.95em;
+    background-color: #1e1e1e;
+    color: #f8f8f2;
+    border: 1px solid #444;
 }
 
 .readme th,
 .readme td {
-	border: 1px solid #444;
-	padding: 8px 12px;
-	text-align: left;
-	vertical-align: top;
+    border: 1px solid #444;
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
 }
 
 .readme th {
-	background-color: #2c2c2c;
-	color: #f3e600;
-	font-weight: bold;
+    background-color: #2c2c2c;
+    color: #f3e600;
+    font-weight: bold;
 }
 
-/* ===========================
-   Mode Intro Panels
-   =========================== */
-
+/* =========================================
+   Mode Panel Introductions
+   ========================================= */
 .mode-intro {
-	max-width: 900px;
-	margin: 20px 0 25px 0;
-	padding: 15px 20px;
-	background: #222;
-	border-radius: 4px;
-	color: #f5f5f5;
-	text-align: left;
+    max-width: 900px;
+    margin: 20px 0 25px 0;
+    padding: 15px 20px;
+    background: #222;
+    border-radius: 4px;
+    color: #f5f5f5;
+    text-align: left;
 }
 
 .guided-intro {
-	border-left: 5px solid #4b8bf4;
+    border-left: 5px solid #4b8bf4;
 }
 
 .solo-intro {
-	border-left: 5px solid #d44f4f;
+    border-left: 5px solid #d44f4f;
 }
 
-/* ===========================
-   Landing Page Specifics
-   =========================== */
-
+/* =========================================
+   Landing Dashboard Profiles
+   ========================================= */
 .landing-container {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	text-align: center;
-	margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-top: 30px;
 }
 
-/* Override default grid to be flex for landing page */
 .landing-container .grid {
-	display: flex;
-	justify-content: center;
-	gap: 20px;
-	flex-wrap: wrap;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
+/* Inherits clean base styles from .challenge-card automatically */
 .landing-container .challenge-card {
-	width: 300px;
-	background: transparent;
-	border: 2px solid #ccc;
-	color: #f3e600;
-	padding: 15px;
-	border-radius: 8px;
-	box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-	text-align: center;
+    width: 300px;
 }
 
 .landing-logo {
-	margin-top: 40px;
-	max-width: 400px;
-	width: 80%;
-	height: auto;
+    margin-top: 40px;
+    max-width: 400px;
+    width: 80%;
+    height: auto;
 }
 
 .empty-state {
-	color: #fff;
-	border: 1px dashed #666;
-	padding: 16px;
-	border-radius: 8px;
-	max-width: 520px;
+    color: #fff;
+    border: 1px dashed #666;
+    padding: 16px;
+    border-radius: 8px;
+    max-width: 520px;
 }
 
 .info-section {
-	max-width: 700px;
-	margin: 16px 0;
-	padding: 20px;
-	background: rgba(255, 255, 255, 0.05);
-	border-radius: 8px;
-	color: #fff;
-	text-align: left;
+    max-width: 700px;
+    margin: 16px 0;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    color: #fff;
+    text-align: left;
 }
 
-/* ===========================
-   Linux Basics Page Specifics
-   =========================== */
-
+/* =========================================
+   Linux Basics Reference Manual Layout
+   ========================================= */
 .linux-content {
-	max-width: 900px;
-	margin: 30px auto;
-	color: #fff;
-	line-height: 1.6;
-	font-size: 16px;
+    max-width: 900px;
+    margin: 30px auto;
+    color: #fff;
+    line-height: 1.6;
+    font-size: 16px;
 }
 
 .linux-content h1,
 .linux-content h2 {
-	color: #f3e600;
-	margin-bottom: 10px;
+    color: #f3e600;
+    margin-bottom: 10px;
 }
 
 .linux-content ul {
-	margin-left: 20px;
+    margin-left: 20px;
 }
 
 .tip-box {
-	background: #1b1b1b;
-	border-left: 4px solid #4b8bf4;
-	padding: 10px 16px;
-	border-radius: 6px;
-	margin: 10px 0 18px 0;
+    background: #1b1b1b;
+    border-left: 4px solid #4b8bf4;
+    padding: 10px 16px;
+    border-radius: 6px;
+    margin: 10px 0 18px 0;
 }
 
 .command {
-	font-family: monospace;
-	background: #222;
-	padding: 2px 6px;
-	border-radius: 4px;
+    font-family: monospace;
+    background: #222;
+    padding: 2px 6px;
+    border-radius: 4px;
 }
 
 .back-btn {
-	display: inline-block;
-	background: #ffffff;
-	color: #000000;
-	padding: 8px 16px;
-	border-radius: 6px;
-	border: 2px solid #ddd;
-	font-weight: bold;
-	text-decoration: none;
-	transition: 0.2s;
+    display: inline-block;
+    background: #ffffff;
+    color: #000000;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 2px solid #ddd;
+    font-weight: bold;
+    text-decoration: none;
+    transition: 0.2s;
 }
 
 .back-btn:hover {
-	background: #e6e6e6;
-	border-color: #ccc;
+    background: #e6e6e6;
+    border-color: #ccc;
 }
 
 a.nav-btn {
-	display: inline-block;
-	margin-top: 10px;
-	padding: 8px 18px;
-	border-radius: 999px;
-	background: transparent;
-	border: 1px solid #555;
-	color: #f2f2f2;
-	text-decoration: none;
-	font-weight: 600;
-	font-size: 0.95rem;
-	transition: 0.2s ease-in-out;
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid #555;
+    color: #f2f2f2;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: 0.2s ease-in-out;
 }
 
 a.nav-btn:hover {
-	background: #111;
-	border-color: #777;
-	color: #ffffff;
+    background: #111;
+    border-color: #777;
+    color: #ffffff;
 }
 
-/* ... existing styles ... */
-
-/* === Exploration Station (Helper Script) === */
+/* =========================================
+   Exploration Simulator Callouts
+   ========================================= */
 .exploration-station {
-	background-color: #e3f2fd;
-	/* Light blue background */
-	border-left: 6px solid #2196f3;
-	/* Strong blue accent on the left */
-	padding: 20px;
-	margin: 25px 0;
-	border-radius: 4px;
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: #e3f2fd;
+    border-left: 6px solid #2196f3;
+    padding: 20px;
+    margin: 25px 0;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .exploration-station h3 {
-	margin-top: 0;
-	color: #1565c0;
-	/* Darker blue for the header */
-	font-size: 1.4em;
-	display: flex;
-	align-items: center;
-	gap: 10px;
+    margin-top: 0;
+    color: #1565c0;
+    font-size: 1.4em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .exploration-station p {
-	color: #37474f;
-	font-size: 1em;
-	margin-bottom: 20px;
+    color: #37474f;
+    font-size: 1em;
+    margin-bottom: 20px;
 }
 
-/* Specific style for the runner button */
 .run-script-btn {
-	width: 100%;
-	padding: 12px 20px;
-	font-size: 1.1rem;
-	font-weight: bold;
-	color: #ffffff;
-	background-color: #2196f3;
-	border: none;
-	border-radius: 6px;
-	cursor: pointer;
-	transition: background-color 0.2s ease, transform 0.1s ease;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: #2196f3;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .run-script-btn:hover {
-	background-color: #1976d2;
-	/* Darker blue on hover */
-	transform: translateY(-1px);
-	/* Slight lift effect */
+    background-color: #1976d2;
+    transform: translateY(-1px);
 }
 
 .run-script-btn:active {
-	transform: translateY(1px);
-	/* Press effect */
+    transform: translateY(1px);
 }
-/* =========================================
-   Coach Mode Styles
-   ========================================= */
 
-/* The Coach Button - Distinct from the standard Action Button */
+/* =========================================
+   Coach Interaction Overlays
+   ========================================= */
 .coach-btn {
-	background-color: #5e35b1;
-	/* Deep Purple */
-	border: 1px solid #4527a0;
-	color: #ffffff;
-	transition: all 0.3s ease;
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    background-color: #5e35b1;
+    border: 1px solid #4527a0;
+    color: #ffffff;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .coach-btn:hover {
-	background-color: #7e57c2;
-	/* Lighter Purple */
-	transform: translateY(-2px);
-	box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
-	cursor: pointer;
+    background-color: #7e57c2;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
 }
 
 .coach-btn:active {
-	background-color: #4527a0;
-	transform: translateY(0);
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    background-color: #4527a0;
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .coach-btn:disabled {
-	background-color: #9575cd;
-	cursor: not-allowed;
-	transform: none;
-	box-shadow: none;
-	opacity: 0.7;
+    background-color: #9575cd;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.7;
 }
