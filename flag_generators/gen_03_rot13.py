@@ -6,94 +6,84 @@ import codecs
 import sys
 from flag_generators.flag_helpers import FlagUtils
 
-
 class ROT13FlagGenerator:
     """
     Generator for the ROT13 cipher challenge.
     Encodes flags into cipher.txt using ROT13.
-    Exports validation metadata via self.metadata for master script use.
     """
 
-    def __init__(self, project_root: Path = None, mode="guided"):
-        self.project_root = project_root or self.find_project_root()
-        self.mode = mode  # guided or solo
+    def __init__(self, project_root: Path = None, mode: str = "guided"):
+        self.project_root = project_root or self._find_project_root()
+        self.mode = mode.lower()
+        if self.mode not in ["guided", "solo"]:
+            raise ValueError(f"Invalid mode '{self.mode}'. Expected 'guided' or 'solo'.")
+        
         self.metadata = {}
 
     @staticmethod
-    def find_project_root() -> Path:
-        dir_path = Path.cwd()
-        for parent in [dir_path] + list(dir_path.parents):
+    def _find_project_root() -> Path:
+        curr = Path.cwd()
+        for parent in [curr] + list(curr.parents):
             if (parent / ".ccri_ctf_root").exists():
                 return parent.resolve()
-        print("❌ ERROR: Could not find .ccri_ctf_root marker. Are you inside the CTF folder?", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError("Could not find .ccri_ctf_root marker.")
 
     @staticmethod
     def rot13(text: str) -> str:
         return codecs.encode(text, "rot_13")
 
-    def safe_cleanup(self, challenge_folder: Path):
-        cipher_file = challenge_folder / "cipher.txt"
-        if cipher_file.exists():
-            try:
-                cipher_file.unlink()
-                print(f"🗑️ Removed old file: {cipher_file.name}")
-            except Exception as e:
-                print(f"⚠️ Could not delete {cipher_file.name}: {e}", file=sys.stderr)
+    def _build_payload(self, all_flags: list) -> str:
+        """Constructs the mock transmission string."""
+        flag_list = "\n".join(f"- {flag}" for flag in all_flags)
+        return (
+            "Transmission Start\n"
+            "------------------------\n"
+            "To: CryptKeepers Command Node\n"
+            "From: Recon Unit 5\n\n"
+            "Flag candidates pulled from intercepted CryptKeepers chatter. "
+            "Message scrambled with a simple cipher to slip past basic filters.\n\n"
+            "Candidates:\n"
+            f"{flag_list}\n\n"
+            "Validate and extract the correct CCRI flag.\n\n"
+            "Transmission End\n"
+            "------------------------\n"
+        )
 
-    def embed_flags(self, challenge_folder: Path, real_flag: str, fake_flags: list):
+    def write_cipher_file(self, challenge_folder: Path, message: str):
+        """Writes the ROT13 encoded payload to disk."""
+        challenge_folder.mkdir(parents=True, exist_ok=True)
         cipher_file = challenge_folder / "cipher.txt"
-        self.safe_cleanup(challenge_folder)
-
+        
         try:
-            if not challenge_folder.exists():
-                raise FileNotFoundError(
-                    f"❌ Challenge folder not found: {challenge_folder.relative_to(self.project_root)}"
-                )
-
-            all_flags = fake_flags + [real_flag]
-            random.shuffle(all_flags)
-
-            message = (
-                "Transmission Start\n"
-                "------------------------\n"
-                "To: CryptKeepers Command Node\n"
-                "From: Recon Unit 5\n\n"
-                "Flag candidates pulled from intercepted CryptKeepers chatter. "
-                "Message scrambled with a simple cipher to slip past basic filters.\n\n"
-                "Candidates:\n"
-                + "\n".join(f"- {flag}" for flag in all_flags)
-                + "\n\nValidate and extract the correct CCRI flag.\n\n"
-                "Transmission End\n"
-                "------------------------\n"
-            )
-
             encoded_message = self.rot13(message)
             cipher_file.write_text(encoded_message)
-            print(f"📄 {cipher_file.relative_to(self.project_root)} created with ROT13-encoded transmission.")
-
-            self.metadata = {
-                "real_flag": real_flag,
-                "challenge_file": str(cipher_file.relative_to(self.project_root)),
-                "unlock_method": "ROT13 decode",
-                "hint": "Apply ROT13 to cipher.txt to recover plaintext.",
-            }
-
-        except PermissionError:
-            print(f"❌ Permission denied: Cannot write to {cipher_file.relative_to(self.project_root)}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"❌ Unexpected error: {e}")
-            sys.exit(1)
+            print(f"📄 Created: {cipher_file.relative_to(self.project_root)}")
+        except OSError as e:
+            raise RuntimeError(f"Failed to write cipher file: {e}")
 
     def generate_flag(self, challenge_folder: Path) -> str:
+        # 1. Generate Flags
         real_flag = FlagUtils.generate_real_flag()
         fake_flags = [FlagUtils.generate_fake_flag() for _ in range(4)]
-
+        
+        # Ensure no duplicates
         while real_flag in fake_flags:
             real_flag = FlagUtils.generate_real_flag()
+        
+        all_flags = fake_flags + [real_flag]
+        random.shuffle(all_flags)
 
-        self.embed_flags(challenge_folder, real_flag, fake_flags)
-        print("   🎭 Fake flags:", ", ".join(fake_flags))
-        print(f"✅ {self.mode.capitalize()} flag: {real_flag}")
+        # 2. Build and write payload
+        message = self._build_payload(all_flags)
+        self.write_cipher_file(challenge_folder, message)
+
+        # 3. Store Metadata
+        self.metadata = {
+            "real_flag": real_flag,
+            "challenge_file": str(challenge_folder.relative_to(self.project_root) / "cipher.txt"),
+            "unlock_method": "ROT13 decode",
+            "hint": "Apply ROT13 to cipher.txt to recover plaintext.",
+        }
+
+        print(f"✅ Flag generated: {real_flag}")
         return real_flag

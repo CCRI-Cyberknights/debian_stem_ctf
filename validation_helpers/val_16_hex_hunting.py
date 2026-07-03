@@ -1,30 +1,41 @@
 #!/usr/bin/env python3
-import os
+
 import sys
 import subprocess
+import shutil
 from pathlib import Path
-from common import find_project_root, load_unlock_data, get_ctf_mode
+from common import find_project_root, load_unlock_data, get_challenge_file
 
 CHALLENGE_ID = "16_HexHunting"
-BINARY_NAME = "hex_flag.bin"
+
+def check_dependencies():
+    """Ensure strings utility is available."""
+    if not shutil.which("strings"):
+        print("❌ ERROR: 'strings' utility not found.", file=sys.stderr)
+        sys.exit(1)
 
 def validate_flag_in_binary(binary_path: Path, expected_flag: str) -> bool:
-    if not binary_path.exists():
-        print(f"❌ ERROR: {binary_path} not found", file=sys.stderr)
+    """Checks for flag in binary via strings and raw byte search."""
+    if not binary_path.is_file():
+        print(f"❌ ERROR: Binary file not found at {binary_path}", file=sys.stderr)
         return False
 
-    # Check strings output
+    # 1. Check strings output
     try:
-        result = subprocess.run(["strings", str(binary_path)],
-                                stdout=subprocess.PIPE, text=True, check=True)
-        for line in result.stdout.splitlines():
-            if expected_flag in line:
-                print(f"✅ Found flag in strings output: {expected_flag}")
-                return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error running strings: {e}", file=sys.stderr)
+        result = subprocess.run(
+            ["strings", str(binary_path)],
+            stdout=subprocess.PIPE, 
+            text=True, 
+            check=True
+        )
+        if expected_flag in result.stdout:
+            print(f"✅ Found flag in strings output: {expected_flag}")
+            return True
+    except subprocess.CalledProcessError:
+        # Fallback to raw check if strings fails
+        pass
 
-    # Check raw bytes
+    # 2. Check raw bytes
     try:
         if expected_flag.encode("utf-8") in binary_path.read_bytes():
             print(f"✅ Found flag in raw bytes: {expected_flag}")
@@ -35,23 +46,22 @@ def validate_flag_in_binary(binary_path: Path, expected_flag: str) -> bool:
     print(f"❌ Validation failed: flag {expected_flag} not found.", file=sys.stderr)
     return False
 
-def validate(mode="guided", challenge_id=CHALLENGE_ID) -> bool:
+def validate() -> bool:
     root = find_project_root()
-    data = load_unlock_data(root, challenge_id)
-    flag = data.get("real_flag")
+    unlock = load_unlock_data(root, CHALLENGE_ID)
+    expected_flag = unlock.get("real_flag")
 
-    sandbox_override = os.environ.get("CCRI_SANDBOX")
-    if sandbox_override:
-        binary_path = Path(sandbox_override) / BINARY_NAME
-    else:
-        base_folder = "challenges_solo" if mode == "solo" else "challenges"
-        binary_path = root / base_folder / challenge_id / BINARY_NAME
+    if not expected_flag:
+        print(f"❌ ERROR: Real flag missing in {CHALLENGE_ID} metadata.", file=sys.stderr)
+        return False
 
-
-    return validate_flag_in_binary(binary_path, flag)
+    check_dependencies()
+    
+    # Path resolution using shared helper
+    binary_path = get_challenge_file(root, CHALLENGE_ID, unlock)
+    
+    return validate_flag_in_binary(binary_path, expected_flag)
 
 if __name__ == "__main__":
-    from common import get_ctf_mode
-    mode = get_ctf_mode()
-    success = validate(mode=mode)
-    import sys; sys.exit(0 if success else 1)
+    success = validate()
+    sys.exit(0 if success else 1)

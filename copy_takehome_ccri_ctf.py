@@ -1,168 +1,125 @@
 #!/usr/bin/env python3
 
 import os
-import shutil
-from pathlib import Path
 import sys
+import shutil
 import subprocess
 import pwd
-import re
+from pathlib import Path
 
 # === Configuration ===
-target_user = "ccri_admin"
-target_folder_name = "stemday_2025_takehome"
+TARGET_USER = "stem_ctf"
+TARGET_FOLDER_NAME = "ctf_takehome"
 
-# === Items to copy (relative to source_root) ===
-include = [
-    "challenges",
-    "challenges_solo",
-    "web_version",
-    "ccri_ctf.pyz",                 # Student deliverable
-    "start_web_hub.py",
-    "stop_web_hub.py",
-    ".ccri_ctf_root",               # Critical marker for exploration scripts
-    "coach_core.py",                # Coach Mode Backend
-    "worker_node.py",               # Coach Mode Worker
-    "exploration_core.py",
-    "reset_environment.py",
+# Items to copy (relative to source_root)
+INCLUDE_ITEMS = [
+    "challenges", "challenges_solo", "web_version", "ccri_ctf.pyz",
+    "start_web_hub.py", "stop_web_hub.py", ".ccri_ctf_root",
+    "coach_core.py", "worker_node.py", "exploration_core.py", "reset_environment.py"
 ]
 
-def copy_and_fix(src: Path, dst: Path, uid: int, gid: int):
-    """Copy src to dst (replace if exists) and set ownership/perms."""
-    if dst.exists():
-        if dst.is_dir():
-            shutil.rmtree(dst)
-        else:
-            dst.unlink()
+def apply_permissions(path: Path, uid: int, gid: int):
+    """Recursively applies correct ownership and permissions."""
+    def is_script(fname): return fname.endswith((".py", ".sh", ".desktop", ".pyz", ".command"))
 
+    # Apply to directory
+    os.chown(path, uid, gid)
+    os.chmod(path, 0o755)
+
+    # Apply to contents
+    for root, dirs, files in os.walk(path):
+        for name in dirs + files:
+            p = Path(root) / name
+            try:
+                os.chown(p, uid, gid)
+                if p.is_dir():
+                    os.chmod(p, 0o755)
+                elif is_script(name):
+                    os.chmod(p, 0o755)
+                else:
+                    os.chmod(p, 0o644)
+            except OSError as e:
+                print(f"⚠️ Could not set perms for {p}: {e}")
+
+def safe_copy(src: Path, dst: Path):
+    """Cleans target and performs copy."""
+    if dst.exists():
+        if dst.is_dir(): shutil.rmtree(dst)
+        else: dst.unlink()
+    
     if src.is_dir():
         shutil.copytree(src, dst)
     else:
         shutil.copy2(src, dst)
 
-    # Ownership & permissions logic
-    def is_script(fname: str) -> bool:
-        return fname.endswith((".py", ".sh", ".desktop", ".pyz", ".command"))
-
-    def is_plain_text(fname: str) -> bool:
-        return fname.endswith((".txt", ".md", ".json", ".gitignore", ".log"))
-
-    if dst.is_dir():
-        for dirpath, _, filenames in os.walk(dst):
-            os.chown(dirpath, uid, gid)
-            os.chmod(dirpath, 0o755)
-            for fname in filenames:
-                fpath = os.path.join(dirpath, fname)
-                try:
-                    os.chown(fpath, uid, gid)
-                except FileNotFoundError:
-                    continue
-                if is_script(fname):
-                    os.chmod(fpath, 0o755)
-                else:
-                    os.chmod(fpath, 0o644)
-    else:
-        os.chown(dst, uid, gid)
-        if is_script(dst.name):
-            os.chmod(dst, 0o755)
-        else:
-            os.chmod(dst, 0o644)
-
-def generate_desktop_launcher(launcher_dst: Path, uid: int, gid: int):
-    """Generates the .desktop file specifically for the Take-Home path assumption."""
-    
-    # We assume the student puts the folder on their Desktop.
-    # We use $HOME in the path so it works for any username.
-    work_dir = f"$HOME/Desktop/{target_folder_name}"
-    icon_path = f"{work_dir}/icon.png"
-    
+def generate_launcher(launcher_dst: Path):
+    """Generates the .desktop file."""
+    work_dir = f"$HOME/Desktop/{TARGET_FOLDER_NAME}"
     content = (
-        "[Desktop Entry]\n"
-        "Version=1.0\n"
-        "Type=Application\n"
-        "Terminal=true\n"
+        "[Desktop Entry]\nVersion=1.0\nType=Application\nTerminal=true\n"
         "Name=Launch CCRI CTF Hub (Take-Home)\n"
         f"Exec=bash -c 'cd \"{work_dir}\" && python3 start_web_hub.py'\n"
-        f"Icon={icon_path}\n"
-        "Name[en_US]=Launch CCRI CTF Hub (Take-Home)\n"
+        f"Icon={work_dir}/icon.png\n"
         "Comment=Start the CyberKnights Challenge Hub\n"
     )
-    
     launcher_dst.write_text(content, encoding="utf-8")
-    os.chown(launcher_dst, uid, gid)
-    os.chmod(launcher_dst, 0o755)
-
-def mark_launcher_trusted(launcher_path: Path):
-    """Mark the .desktop file as trusted (Mint/Nemo) via gio."""
-    try:
-        subprocess.run(
-            ["gio", "set", str(launcher_path), "metadata::trusted", "true"],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        print("🔐 Marked launcher as trusted with gio metadata.")
-    except Exception:
-        pass
 
 def main():
-    source_root = Path(__file__).resolve().parent
-    
-    # Verify User
-    try:
-        uid = pwd.getpwnam(target_user).pw_uid
-        gid = pwd.getpwnam(target_user).pw_gid
-    except KeyError:
-        print(f"❌ User {target_user} not found. Cannot populate their desktop.")
+    # 1. Permission Check
+    if os.geteuid() != 0:
+        print("❌ This script must be run as root (sudo) to manage file ownership.")
         sys.exit(1)
 
-    target_home = Path(f"/home/{target_user}")
-    target_desktop = target_home / "Desktop"
-    target_root = target_desktop / target_folder_name
-
-    print(f"📂 Source: {source_root}")
-    print(f"📥 Target: {target_root}")
-
-    # Ensure target root exists
-    if not target_root.exists():
-        target_root.mkdir(parents=True, exist_ok=True)
+    source_root = Path(__file__).resolve().parent
     
-    # Set root permissions
-    os.chown(target_root, uid, gid)
-    os.chmod(target_root, 0o755)
+    # 2. Identify Target
+    try:
+        pw_record = pwd.getpwnam(TARGET_USER)
+        uid, gid = pw_record.pw_uid, pw_record.pw_gid
+    except KeyError:
+        print(f"❌ User '{TARGET_USER}' not found.")
+        sys.exit(1)
 
-    # Check for marker
-    marker = source_root / ".ccri_ctf_root"
-    if not marker.exists():
-        print("⚠️ Marker .ccri_ctf_root missing in source. Creating it...")
-        marker.touch()
+    target_root = Path(f"/home/{TARGET_USER}/Desktop/{TARGET_FOLDER_NAME}")
+    print(f"📂 Source: {source_root}\n📥 Target: {target_root}")
 
-    # Copy Items
-    for item in include:
+    # 3. Create Root & Markers
+    target_root.mkdir(parents=True, exist_ok=True)
+    if not (source_root / ".ccri_ctf_root").exists():
+        (source_root / ".ccri_ctf_root").touch()
+
+    # 4. Copy Files
+    for item in INCLUDE_ITEMS:
         src = source_root / item
-        dst = target_root / item
         if src.exists():
             print(f"➡️ Copying {item}...")
-            copy_and_fix(src, dst, uid, gid)
+            safe_copy(src, target_root / item)
         else:
             print(f"⚠️ Skipping missing item: {item}")
 
-    # Copy Custom Icon
-    icon_src = source_root / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
-    icon_dst = target_root / "icon.png"
+    # 5. Icon Handling
+    icon_src = source_root / "web_version_admin/static/assets/CyberKnights_2.png"
     if icon_src.exists():
-        print("🎨 Copying custom icon...")
-        shutil.copy2(icon_src, icon_dst)
-        os.chown(icon_dst, uid, gid)
-        os.chmod(icon_dst, 0o644)
+        print("🎨 Copying icon...")
+        shutil.copy2(icon_src, target_root / "icon.png")
 
-    # Generate Launcher inside the folder
+    # 6. Finalize Permissions & Launcher
+    print("🔒 Setting permissions and generating launcher...")
+    apply_permissions(target_root, uid, gid)
+    
     launcher = target_root / "Launch_CCRI_CTF_HUB.desktop"
-    print("📎 Generating portable launcher...")
-    generate_desktop_launcher(launcher, uid, gid)
-    mark_launcher_trusted(launcher)
+    generate_launcher(launcher)
+    
+    # Final chown for the launcher (apply_permissions covers the dir, but just to be safe)
+    os.chown(launcher, uid, gid) 
+    
+    # Trust launcher
+    try:
+        subprocess.run(["gio", "set", str(launcher), "metadata::trusted", "true"], check=False)
+    except Exception:
+        pass
 
-    print("\n✅ Done. Take-home version populated.")
-    print(f"📎 Location: {target_root}")
-    print("ℹ️  Instructions: Zip this folder and distribute it. Students should extract it to their Desktop.")
+    print(f"\n✅ Take-home version deployed to {target_root}")
 
 if __name__ == "__main__":
     main()

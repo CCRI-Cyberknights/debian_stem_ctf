@@ -1,52 +1,66 @@
 #!/usr/bin/env python3
-import os
+
 import sys
 import subprocess
+import shutil
 from pathlib import Path
-from common import find_project_root, load_unlock_data, get_ctf_mode
+from common import find_project_root, load_unlock_data, get_challenge_file
 
 CHALLENGE_ID = "18_PcapSearch"
-PCAP_FILE = "traffic.pcap"
+
+def check_dependencies():
+    """Fail-fast check for required CLI tools."""
+    for tool in ["tshark", "xxd"]:
+        if not shutil.which(tool):
+            print(f"❌ ERROR: '{tool}' is not installed.", file=sys.stderr)
+            sys.exit(1)
 
 def fast_search_flag(pcap: Path, flag: str) -> bool:
-    cmd = f"tshark -r {pcap} -Y 'tcp' -T fields -e tcp.payload | xxd -r -p | strings"
-    result = subprocess.run(
-        cmd,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True
-    )
-    return flag in result.stdout
+    """Uses a tshark pipeline to extract and search TCP payloads."""
+    # Pipeline: tshark extracts hex payloads -> xxd converts hex to raw bytes -> strings searches for ASCII
+    cmd = f"tshark -r {str(pcap)} -Y 'tcp' -T fields -e tcp.payload | xxd -r -p | strings"
+    
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=True
+        )
+        return flag in result.stdout
+    except subprocess.CalledProcessError:
+        print("❌ ERROR: Tshark pipeline failed.", file=sys.stderr)
+        return False
 
-def validate(mode="guided", challenge_id=CHALLENGE_ID) -> bool:
+def validate() -> bool:
     root = find_project_root()
-    data = load_unlock_data(root, challenge_id)
-    flag = data.get("real_flag")
+    unlock = load_unlock_data(root, CHALLENGE_ID)
+    expected_flag = unlock.get("real_flag")
 
-    base_path = "challenges_solo" if mode == "solo" else "challenges"
-
-    # 🔐 Sandbox override support
-    sandbox_override = os.environ.get("CCRI_SANDBOX")
-    if sandbox_override:
-        challenge_dir = Path(sandbox_override)
-    else:
-        challenge_dir = root / base_path / challenge_id
-
-    pcap_path = challenge_dir / PCAP_FILE
-
-    if not pcap_path.exists():
-        print(f"❌ {PCAP_FILE} missing at {pcap_path}", file=sys.stderr)
+    if not expected_flag:
+        print(f"❌ ERROR: Real flag missing in {CHALLENGE_ID} metadata.", file=sys.stderr)
         return False
 
-    if fast_search_flag(pcap_path, flag):
-        print(f"✅ Flag '{flag}' found in PCAP")
+    check_dependencies()
+
+    # Path resolution using shared helper
+    # We locate the parent directory to find traffic.pcap
+    base_file = get_challenge_file(root, CHALLENGE_ID, unlock)
+    pcap_path = base_file.parent / "traffic.pcap"
+
+    if not pcap_path.is_file():
+        print(f"❌ ERROR: PCAP file missing at {pcap_path}", file=sys.stderr)
+        return False
+
+    if fast_search_flag(pcap_path, expected_flag):
+        print(f"✅ Validation success: found flag '{expected_flag}' in PCAP.")
         return True
-    else:
-        print(f"❌ Flag '{flag}' NOT found in PCAP", file=sys.stderr)
-        return False
+    
+    print(f"❌ Validation failed: flag '{expected_flag}' NOT found in PCAP.", file=sys.stderr)
+    return False
 
 if __name__ == "__main__":
-    mode = get_ctf_mode()
-    success = validate(mode=mode)
+    success = validate()
     sys.exit(0 if success else 1)

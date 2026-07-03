@@ -1,86 +1,68 @@
 #!/usr/bin/env python3
 
-from pathlib import Path
-import random
-import subprocess
 import sys
+import shutil
+import subprocess
+import random
+from pathlib import Path
 from flag_generators.flag_helpers import FlagUtils
-
 
 class QRCodeFlagGenerator:
     """
     Generator for the QR Codes challenge.
-    Produces 5 QR code PNGs in the challenge folder with 1 real flag and 4 decoys.
-    Supports guided and solo modes with metadata passed back to the master script.
+    Produces QR code PNGs with 1 real flag and 4 decoys.
     """
 
     def __init__(self, project_root: Path = None, mode="guided"):
-        self.project_root = project_root or self.find_project_root()
-        self.mode = mode
+        self.project_root = project_root or self._find_project_root()
+        self.mode = mode.lower()
+        if self.mode not in ["guided", "solo"]:
+            raise ValueError(f"Invalid mode '{self.mode}'. Expected 'guided' or 'solo'.")
+        
+        self._check_dependencies()
         self.metadata = {}
 
     @staticmethod
-    def find_project_root() -> Path:
-        """Walk up directories until .ccri_ctf_root is found."""
-        dir_path = Path.cwd()
-        for parent in [dir_path] + list(dir_path.parents):
+    def _find_project_root() -> Path:
+        curr = Path.cwd()
+        for parent in [curr] + list(curr.parents):
             if (parent / ".ccri_ctf_root").exists():
                 return parent.resolve()
-        print("❌ ERROR: Could not find .ccri_ctf_root marker.", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError("Could not find .ccri_ctf_root marker.")
 
-    @staticmethod
-    def check_qrencode_installed():
-        """Verify qrencode is installed, or exit with error."""
-        result = subprocess.run(["which", "qrencode"], capture_output=True)
+    def _check_dependencies(self):
+        if not shutil.which("qrencode"):
+            raise RuntimeError("The 'qrencode' utility is not installed. Run 'apt install qrencode'.")
+
+    def _run_cmd(self, cmd: list, description: str):
+        result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            print("❌ ERROR: qrencode is not installed.")
-            print("👉 To fix, run: sudo apt install qrencode")
-            sys.exit(1)
-        else:
-            print("✅ qrencode is installed.")
+            raise RuntimeError(f"Failed to {description}:\n{result.stderr.strip()}")
 
-    def create_qr_code(self, output_file: Path, text: str):
-        """Use qrencode to generate a QR code PNG."""
-        try:
-            subprocess.run(["qrencode", "-o", str(output_file), text], check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"❌ Failed to generate QR code: {e}", file=sys.stderr)
-            sys.exit(1)
-
-    def clean_qr_codes(self, folder: Path):
-        """Remove only old QR codes (qr_*.png) in the challenge folder."""
-        if folder.exists():
-            try:
-                for qr_file in folder.glob("qr_*.png"):
-                    qr_file.unlink()
-                    print(f"🗑️ Removed old QR code: {qr_file.name}")
-            except Exception as e:
-                print(f"⚠️ Could not delete QR code(s) in {folder.relative_to(self.project_root)}: {e}", file=sys.stderr)
-        else:
-            print(f"📁 Creating challenge folder: {folder.relative_to(self.project_root)}")
-            folder.mkdir(parents=True, exist_ok=True)
+    def _clean_qr_codes(self, folder: Path):
+        """Remove existing qr_*.png files to ensure a clean build."""
+        for qr_file in folder.glob("qr_*.png"):
+            qr_file.unlink(missing_ok=True)
+        print(f"🗑️ Cleaned old QR codes in {folder.name}")
 
     def embed_flags_as_qr(self, challenge_folder: Path, real_flag: str, fake_flags: list):
-        """
-        Generate 5 QR codes in the challenge folder: 1 real flag and 4 fake flags.
-        """
-        self.clean_qr_codes(challenge_folder)
+        """Generates 5 QR codes (1 real, 4 fake) in the challenge folder."""
+        challenge_folder.mkdir(parents=True, exist_ok=True)
+        self._clean_qr_codes(challenge_folder)
 
         all_flags = fake_flags + [real_flag]
         random.shuffle(all_flags)
 
-        print(f"🎭 Fake flags: {', '.join(fake_flags)}")
-        print(f"🎯 Generating QR codes in: {challenge_folder.relative_to(self.project_root)}")
-
         for i, flag in enumerate(all_flags, start=1):
             qr_file = challenge_folder / f"qr_{i:02}.png"
-            self.create_qr_code(qr_file, flag)
-            if flag == real_flag:
-                print(f"✅ {qr_file.name} (REAL flag)")
-            else:
-                print(f"➖ {qr_file.name} (decoy)")
+            # Using -s 6 for a decent output size (scale)
+            self._run_cmd(
+                ["qrencode", "-o", str(qr_file), "-s", "6", flag],
+                description=f"generate QR code {i}"
+            )
+            print(f"📸 Created {qr_file.name}")
 
+        # Metadata
         self.metadata = {
             "real_flag": real_flag,
             "challenge_folder": str(challenge_folder.relative_to(self.project_root)),
@@ -89,15 +71,15 @@ class QRCodeFlagGenerator:
         }
 
     def generate_flag(self, challenge_folder: Path) -> str:
-        """Generate QR code PNGs with 1 real and 4 fake flags."""
-        self.check_qrencode_installed()
-
         real_flag = FlagUtils.generate_real_flag()
-        fake_flags = list({FlagUtils.generate_fake_flag() for _ in range(4)})
-
+        # Ensure uniqueness
+        fake_set = set()
+        while len(fake_set) < 4:
+            fake_set.add(FlagUtils.generate_fake_flag())
+        fake_flags = list(fake_set)
+        
         while real_flag in fake_flags:
             real_flag = FlagUtils.generate_real_flag()
 
-        self.embed_flags_as_qr(challenge_folder, real_flag, fake_flags)
-        print(f"✅ {self.mode.capitalize()} flag: {real_flag}")
+        self.embed_flags(challenge_folder, real_flag, fake_flags)
         return real_flag

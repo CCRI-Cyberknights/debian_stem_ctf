@@ -1,55 +1,46 @@
 #!/usr/bin/env python3
+
 import base64
-import os
 import sys
 from pathlib import Path
-from common import find_project_root, load_unlock_data
+from common import find_project_root, load_unlock_data, get_challenge_file
+
+CHALLENGE_ID = "02_Base64"
 
 def decode_file(input_path: Path) -> str:
+    """Reads and base64 decodes the file content."""
     try:
-        encoded = input_path.read_text(encoding="utf-8")
+        encoded = input_path.read_text(encoding="utf-8").strip()
         return base64.b64decode(encoded).decode("utf-8").strip()
     except Exception as e:
-        print(f"❌ Error decoding base64: {e}")
+        print(f"❌ Error decoding base64: {e}", file=sys.stderr)
         return ""
 
-def validate(mode="guided", challenge_id="02_Base64") -> bool:
+def validate() -> bool:
     root = find_project_root()
-    data = load_unlock_data(root, challenge_id)
-    flag = data.get("real_flag")
+    unlock = load_unlock_data(root, CHALLENGE_ID)
+    real_flag = unlock.get("real_flag")
 
-    if mode == "guided":
-        file_rel = data.get("challenge_file", f"challenges/{challenge_id}/encoded.txt")
-    else:
-        file_rel = f"challenges_solo/{challenge_id}/encoded.txt"
+    if not real_flag:
+        print(f"❌ ERROR: Real flag missing in {CHALLENGE_ID} metadata.", file=sys.stderr)
+        return False
 
-    sandbox_override = os.environ.get("CCRI_SANDBOX")
-    if sandbox_override:
-        input_path = Path(sandbox_override) / "encoded.txt"
-    else:
-        input_path = root / file_rel
+    # Get path using our shared helper from common.py
+    input_path = get_challenge_file(root, CHALLENGE_ID, unlock)
 
-    if not input_path.exists():
-        print(f"❌ Challenge file not found: {input_path}")
+    if not input_path.is_file():
+        print(f"❌ Challenge file not found: {input_path}", file=sys.stderr)
         return False
 
     decoded = decode_file(input_path)
-    if flag in decoded:
-        print(f"✅ Validation success: found flag {flag}")
+    
+    if real_flag in decoded:
+        print(f"✅ Validation success: found flag {real_flag}")
         return True
     else:
-        print(f"❌ Validation failed: flag {flag} not found in decoded content")
+        print("❌ Validation failed: flag not found in decoded content", file=sys.stderr)
         return False
 
-def required_files(mode="guided", challenge_id="02_Base64"):
-    """Return a list of required files for validation (used for sandbox pre-checks)."""
-    if mode == "guided":
-        return [f"challenges/{challenge_id}/encoded.txt"]
-    else:
-        return [f"challenges_solo/{challenge_id}/encoded.txt"]
-
 if __name__ == "__main__":
-    from common import get_ctf_mode
-    mode = get_ctf_mode()
-    success = validate(mode=mode)
-    import sys; sys.exit(0 if success else 1)
+    success = validate()
+    sys.exit(0 if success else 1)

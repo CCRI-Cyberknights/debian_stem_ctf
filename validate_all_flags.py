@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import sys
 import os
 import subprocess
@@ -6,9 +7,8 @@ import json
 import shutil
 from pathlib import Path
 
-# === Paths ===
-BASE_DIR = Path.cwd()
-CHALLENGES_ROOT = BASE_DIR / "challenges"
+# === Paths (Relative to this script) ===
+BASE_DIR = Path(__file__).resolve().parent
 CHALLENGES_JSON = BASE_DIR / "web_version_admin/challenges.json"
 CHALLENGES_JSON_SOLO = BASE_DIR / "web_version_admin/challenges_solo.json"
 UNLOCKS_GUIDED = BASE_DIR / "web_version_admin/validation_unlocks.json"
@@ -45,32 +45,10 @@ def choose_mode():
     choice = input("Enter choice [1/2]: ").strip()
     return "solo" if choice == "2" else "guided"
 
-def load_challenges(mode):
+def load_challenge_list(mode):
     path = CHALLENGES_JSON_SOLO if mode == "solo" else CHALLENGES_JSON
-    with open(path, "r", encoding="utf-8") as f:
+    with path.open("r", encoding="utf-8") as f:
         return json.load(f)
-
-def load_unlock_data(mode):
-    path = UNLOCKS_SOLO if mode == "solo" else UNLOCKS_GUIDED
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def setup_sandbox(challenge_id, mode):
-    """Copy challenge folder into a temp sandbox for validation."""
-    folder_name = "challenges_solo" if mode == "solo" else "challenges"
-    src = BASE_DIR / folder_name / challenge_id
-    sandbox_dir = SANDBOX_ROOT / challenge_id
-
-    if sandbox_dir.exists():
-        shutil.rmtree(sandbox_dir)
-    sandbox_dir.parent.mkdir(parents=True, exist_ok=True)
-
-    if src.exists():
-        shutil.copytree(src, sandbox_dir)
-    else:
-        print(f"⚠️ Challenge folder not found: {src}")
-
-    return sandbox_dir
 
 def run_validator(challenge_id, mode):
     module_name = CHALLENGE_TO_MODULE.get(challenge_id)
@@ -79,17 +57,16 @@ def run_validator(challenge_id, mode):
         return False
 
     script_path = VALIDATION_MODULES / f"{module_name}.py"
-    print(f"\n🔍 Validating {challenge_id} using {script_path}...")
+    print(f"\n🔍 Validating {challenge_id}...")
 
     if not script_path.exists():
         print(f"⚠️  Skipped: {script_path} not found.")
         return False
 
-    # Setup sandbox
-    sandbox = setup_sandbox(challenge_id, mode)
+    # Setup environment
     env = os.environ.copy()
     env["CCRI_MODE"] = mode
-    env["CCRI_SANDBOX"] = str(sandbox)
+    env["CCRI_SANDBOX"] = str(SANDBOX_ROOT / challenge_id)
 
     try:
         result = subprocess.run(
@@ -101,41 +78,45 @@ def run_validator(challenge_id, mode):
         )
         return result.returncode == 0
     except Exception as e:
-        print(f"❌ Exception running validator: {e}")
+        print(f"❌ Exception running validator: {e}", file=sys.stderr)
         return False
 
 def main():
     print("🚦 CCRI STEMDay Master Validator\n" + "=" * 40)
+    
+    # Check CLI args or prompt for mode
     mode = sys.argv[1].lower() if len(sys.argv) > 1 else choose_mode()
-
     if mode not in ("guided", "solo"):
-        print("❌ Invalid mode. Use: validate_all_flags.py [guided|solo]")
+        print("❌ Invalid mode. Use: ./validate_all_flags.py [guided|solo]")
         sys.exit(1)
 
-    # Clean sandbox
+    # Prepare Workspace
     if SANDBOX_ROOT.exists():
         shutil.rmtree(SANDBOX_ROOT)
     SANDBOX_ROOT.mkdir()
 
     print(f"🛠️ Mode: {mode.upper()}")
-    challenges = load_challenges(mode)
+    challenges = load_challenge_list(mode)
 
-    success = 0
-    fail = 0
+    success_count = 0
+    fail_count = 0
 
     for challenge_id in challenges:
         if run_validator(challenge_id, mode):
-            success += 1
+            success_count += 1
         else:
-            fail += 1
+            fail_count += 1
 
-    print("\n📊 Validation Summary:")
-    print(f"✅ {success} passed")
-    print(f"❌ {fail} failed")
-    if fail == 0:
+    print("\n" + "=" * 40)
+    print("📊 Validation Summary:")
+    print(f"✅ {success_count} passed")
+    print(f"❌ {fail_count} failed")
+    
+    if fail_count == 0:
         print("\n🎉 All challenges validated successfully!")
     else:
-        print("\n🚨 Some challenges failed. Check messages above.")
+        print("\n🚨 Some challenges failed. Check logs above.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

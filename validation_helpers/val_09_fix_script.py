@@ -1,78 +1,74 @@
 #!/usr/bin/env python3
-import os
+
 import sys
 import subprocess
 import shutil
 from pathlib import Path
-from common import find_project_root, load_unlock_data, get_ctf_mode
+from common import find_project_root, load_unlock_data, get_challenge_file
 
 CHALLENGE_ID = "09_FixScript"
 
-def replace_operator(script_path: Path, new_operator: str) -> bool:
+def apply_fix_and_run(script_path: Path, temp_script: Path, operator: str) -> str:
+    """Copies the script, patches the math operator, and runs it."""
     try:
-        lines = script_path.read_text(encoding="utf-8").splitlines()
-        fixed_lines = []
-        for line in lines:
-            if "code =" in line and any(op in line for op in ["+", "-", "*", "/"]):
-                fixed_lines.append(f"code = part1 {new_operator} part2  # <- fixed math")
-            else:
-                fixed_lines.append(line)
-        script_path.write_text("\n".join(fixed_lines) + "\n", encoding="utf-8")
-        return True
-    except Exception as e:
-        print(f"❌ ERROR updating script: {e}", file=sys.stderr)
-        return False
-
-def run_python_script(script_path: Path) -> str:
-    try:
+        # Copy to temp location for non-destructive validation
+        shutil.copy2(script_path, temp_script)
+        
+        lines = temp_script.read_text(encoding="utf-8").splitlines()
+        fixed_lines = [
+            f"code = part1 {operator} part2  # <- fixed math" 
+            if "code =" in line and any(op in line for op in ["+", "-", "*", "/"])
+            else line
+            for line in lines
+        ]
+        temp_script.write_text("\n".join(fixed_lines) + "\n", encoding="utf-8")
+        
+        # Execute the patched script
         result = subprocess.run(
-            [sys.executable, str(script_path)],
+            [sys.executable, str(temp_script)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            check=True
         )
         return result.stdout.strip()
     except Exception as e:
-        print(f"❌ ERROR running script: {e}", file=sys.stderr)
+        print(f"❌ ERROR during patch/execution: {e}", file=sys.stderr)
         return ""
 
-def validate(mode="guided", challenge_id=CHALLENGE_ID) -> bool:
+def validate() -> bool:
     root = find_project_root()
-    data = load_unlock_data(root, challenge_id)
-    flag = data.get("real_flag")
-    correct_op = data.get("correct_operator", "+")
-
-    base_path = "challenges_solo" if mode == "solo" else "challenges"
-    sandbox_override = os.environ.get("CCRI_SANDBOX")
+    unlock = load_unlock_data(root, CHALLENGE_ID)
     
-    if sandbox_override:
-        challenge_dir = Path(sandbox_override)
-        real_dir = root / base_path / challenge_id
-        if not challenge_dir.exists():
-            print(f"🧪 Copying challenge files into sandbox: {challenge_dir}")
-            shutil.copytree(real_dir, challenge_dir)
-    else:
-        challenge_dir = root / base_path / challenge_id
+    expected_flag = unlock.get("real_flag")
+    correct_op = unlock.get("correct_operator", "+")
 
-    script_path = challenge_dir / "broken_flag.py"
+    if not expected_flag:
+        print(f"❌ ERROR: Real flag missing in {CHALLENGE_ID} metadata.", file=sys.stderr)
+        return False
+
+    # Get path using our shared helper
+    script_path = get_challenge_file(root, CHALLENGE_ID, unlock)
+    temp_script = script_path.parent / "temp_validation.py"
 
     if not script_path.is_file():
-        print(f"❌ ERROR: broken_flag.py not found at {script_path}", file=sys.stderr)
+        print(f"❌ ERROR: Script not found at {script_path}", file=sys.stderr)
         return False
 
-    if not replace_operator(script_path, correct_op):
-        return False
+    try:
+        output = apply_fix_and_run(script_path, temp_script, correct_op)
+        
+        if expected_flag in output:
+            print(f"✅ Validation success: found flag {expected_flag}")
+            return True
+        else:
+            print(f"❌ Validation failed: flag {expected_flag} not found in output.", file=sys.stderr)
+            return False
 
-    output = run_python_script(script_path)
-    if flag in output:
-        print(f"✅ Validation success: found flag {flag}")
-        return True
-    else:
-        print(f"❌ Validation failed: flag {flag} not found in output.", file=sys.stderr)
-        return False
+    finally:
+        # Cleanup temp file
+        temp_script.unlink(missing_ok=True)
 
 if __name__ == "__main__":
-    from common import get_ctf_mode
-    mode = get_ctf_mode()
-    success = validate(mode=mode)
-    import sys; sys.exit(0 if success else 1)
+    success = validate()
+    sys.exit(0 if success else 1)

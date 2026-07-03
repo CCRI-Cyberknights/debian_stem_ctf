@@ -5,37 +5,36 @@ import random
 import sys
 from flag_generators.flag_helpers import FlagUtils
 
-
 class VigenereFlagGenerator:
     """
     Generator for the Vigenère cipher challenge.
-    Embeds encrypted flag message into cipher.txt.
-    Exports validation metadata via self.metadata for use by the master script.
+    Encodes an encrypted transmission into cipher.txt.
     """
 
     DEFAULT_KEY = "login"
     SOLO_KEY = "providence"
 
-    def __init__(self, project_root: Path = None, mode="guided"):
-        self.project_root = project_root or self.find_project_root()
-        self.mode = mode  # guided or solo
-        self.vigenere_key = (
-            self.DEFAULT_KEY.lower() if self.mode == "guided" else self.SOLO_KEY.lower()
-        )
+    def __init__(self, project_root: Path = None, mode: str = "guided"):
+        self.project_root = project_root or self._find_project_root()
+        self.mode = mode.lower()
+        if self.mode not in ["guided", "solo"]:
+            raise ValueError(f"Invalid mode '{self.mode}'. Expected 'guided' or 'solo'.")
+
+        self.vigenere_key = self.DEFAULT_KEY if self.mode == "guided" else self.SOLO_KEY
         self.metadata = {}
 
     @staticmethod
-    def find_project_root() -> Path:
-        dir_path = Path.cwd()
-        for parent in [dir_path] + list(dir_path.parents):
+    def _find_project_root() -> Path:
+        curr = Path.cwd()
+        for parent in [curr] + list(curr.parents):
             if (parent / ".ccri_ctf_root").exists():
                 return parent.resolve()
-        print("❌ ERROR: Could not find .ccri_ctf_root marker. Are you inside the CTF folder?", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError("Could not find .ccri_ctf_root marker.")
 
-    def vigenere_encrypt(self, plaintext: str, key: str = None) -> str:
-        key = (key or self.vigenere_key).lower()
+    def _vigenere_encrypt(self, plaintext: str) -> str:
+        """Standard Vigenère implementation."""
         result = []
+        key = self.vigenere_key.lower()
         key_len = len(key)
         key_indices = [ord(k) - ord('a') for k in key]
         key_pos = 0
@@ -45,77 +44,65 @@ class VigenereFlagGenerator:
                 offset = ord('A') if char.isupper() else ord('a')
                 pi = ord(char) - offset
                 ki = key_indices[key_pos % key_len]
-                encrypted = chr((pi + ki) % 26 + offset)
-                result.append(encrypted)
+                result.append(chr((pi + ki) % 26 + offset))
                 key_pos += 1
             else:
                 result.append(char)
         return ''.join(result)
 
-    def safe_cleanup(self, challenge_folder: Path):
-        cipher_file = challenge_folder / "cipher.txt"
-        if cipher_file.exists():
-            try:
-                cipher_file.unlink()
-                print(f"🗑️ Removed old file: {cipher_file.name}")
-            except Exception as e:
-                print(f"⚠️ Could not delete {cipher_file.name}: {e}", file=sys.stderr)
+    def _build_payload(self, all_flags: list) -> str:
+        """Constructs the mock transmission string."""
+        flag_list = "\n".join(f"- {flag}" for flag in all_flags)
+        return (
+            "Transmission Start\n"
+            "------------------------\n"
+            "To: CryptKeepers Command Node\n"
+            "From: Field Unit 7\n\n"
+            "Status update: Multiple potential flags recovered while monitoring "
+            "CryptKeepers relay traffic. Data has been encoded prior to relay transfer.\n\n"
+            "Candidates:\n"
+            f"{flag_list}\n\n"
+            "Verify the true CCRI flag before submission.\n\n"
+            "Transmission End\n"
+            "------------------------\n"
+        )
 
-    def embed_flags(self, challenge_folder: Path, real_flag: str, fake_flags: list):
+    def write_cipher_file(self, challenge_folder: Path, message: str):
+        """Writes the encrypted payload to disk."""
+        challenge_folder.mkdir(parents=True, exist_ok=True)
         cipher_file = challenge_folder / "cipher.txt"
-        self.safe_cleanup(challenge_folder)
-
+        
         try:
-            if not challenge_folder.exists():
-                raise FileNotFoundError(
-                    f"❌ Challenge folder not found: {challenge_folder.relative_to(self.project_root)}"
-                )
-
-            all_flags = fake_flags + [real_flag]
-            random.shuffle(all_flags)
-
-            # 🔥 Updated only the lore text inside the message
-            message = (
-                "Transmission Start\n"
-                "------------------------\n"
-                "To: CryptKeepers Command Node\n"
-                "From: Field Unit 7\n\n"
-                "Status update: Multiple potential flags recovered while monitoring "
-                "CryptKeepers relay traffic. Data has been encoded prior to relay transfer.\n\n"
-                "Candidates:\n"
-                + "\n".join(f"- {flag}" for flag in all_flags)
-                + "\n\nVerify the true CCRI flag before submission.\n\n"
-                "Transmission End\n"
-                "------------------------\n"
-            )
-
-            encrypted_message = self.vigenere_encrypt(message)
+            encrypted_message = self._vigenere_encrypt(message)
             cipher_file.write_text(encrypted_message)
-            print(f"📄 {cipher_file.relative_to(self.project_root)} created with Vigenère-encrypted transmission.")
-
-            self.metadata = {
-                "real_flag": real_flag,
-                "vigenere_key": self.vigenere_key,
-                "challenge_file": str(cipher_file.relative_to(self.project_root)),
-                "unlock_method": f"Vigenère cipher (key='{self.vigenere_key}')",
-                "hint": f"Use the Vigenère key '{self.vigenere_key}' to decrypt cipher.txt."
-            }
-
-        except PermissionError:
-            print(f"❌ Permission denied: Cannot write to {cipher_file.relative_to(self.project_root)}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"❌ Unexpected error during embedding: {e}")
-            sys.exit(1)
+            print(f"📄 Created: {cipher_file.relative_to(self.project_root)}")
+        except OSError as e:
+            raise RuntimeError(f"Failed to write cipher file: {e}")
 
     def generate_flag(self, challenge_folder: Path) -> str:
+        # 1. Generate Flags
         real_flag = FlagUtils.generate_real_flag()
         fake_flags = [FlagUtils.generate_fake_flag() for _ in range(4)]
-
+        
+        # Ensure uniqueness
         while real_flag in fake_flags:
             real_flag = FlagUtils.generate_real_flag()
+        
+        all_flags = fake_flags + [real_flag]
+        random.shuffle(all_flags)
 
-        self.embed_flags(challenge_folder, real_flag, fake_flags)
-        print('   🎭 Fake flags:', ', '.join(fake_flags))
-        print(f"✅ {self.mode.capitalize()} flag: {real_flag}")
+        # 2. Build and write payload
+        message = self._build_payload(all_flags)
+        self.write_cipher_file(challenge_folder, message)
+
+        # 3. Store Metadata
+        self.metadata = {
+            "real_flag": real_flag,
+            "vigenere_key": self.vigenere_key,
+            "challenge_file": str(challenge_folder.relative_to(self.project_root) / "cipher.txt"),
+            "unlock_method": f"Vigenère cipher (key='{self.vigenere_key}')",
+            "hint": f"Use the Vigenère key '{self.vigenere_key}' to decrypt cipher.txt.",
+        }
+
+        print(f"✅ Flag generated: {real_flag} (Key: {self.vigenere_key})")
         return real_flag

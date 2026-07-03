@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 
-from pathlib import Path
-import random
-import shutil
 import sys
+import shutil
+import random
+from pathlib import Path
 from flag_generators.flag_helpers import FlagUtils
-
 
 class HiddenFlagGenerator:
     """
     Generator for the Hidden Flag challenge.
-    Builds a fake folder structure and hides real + fake flags in random files.
-    Supports guided and solo modes with metadata returned to master script.
+    Builds a fake folder structure and hides flags in random files.
     """
 
     FOLDERS_AND_FILES = {
@@ -21,133 +19,79 @@ class HiddenFlagGenerator:
         "ref": ["readme.txt", ".archive"],
     }
 
-    FILE_BASED_JUNK = {
-        "sysdump.bak": [
-            "### System Memory Dump ###",
-            "Heap analysis: no anomalies detected.",
-            "Saved core dump for developer inspection.",
-        ],
-        ".config.old": [
-            "# Legacy configuration file",
-            "user=guest",
-            "enable_logging=true",
-            "last_modified=2019-08-12",
-        ],
-        "info.tmp": [
-            "[INFO BLOCK]",
-            "Session start: 2025-06-21 09:15",
-            "Temporary cache: active",
-            "User: ccri_admin",
-        ],
-        ".hint_file": [
-            "# HINT: Sometimes things are not as they seem...",
-            "Metadata may contain valuable information.",
-            "Cross-check all hidden files carefully.",
-        ],
-        ".summary": [
-            "=== Data Summary Report ===",
-            "Total records processed: 1024",
-            "Errors encountered: 0",
-            "Exported successfully to archive.",
-        ],
-        "old.log": [
-            "[2025-06-19 14:33:01] INFO User login attempt.",
-            "[2025-06-19 14:34:11] DEBUG Connection established.",
-            "[2025-06-19 14:35:22] WARN Disk usage at 92%.",
-        ],
-        ".keep.tmp": [
-            "# Temporary Keep File",
-            "Do not delete until verified by sysadmin.",
-            "Checksum: a9b8c7d6e5f4",
-        ],
-        ".notes": [
-            "Research notes for backup procedures.",
-            "Remember to check permissions after restore.",
-            "TODO: Document encryption key rotation.",
-        ],
-        "readme.txt": [
-            "Welcome to the reference directory.",
-            "This folder contains assorted documentation.",
-            "Review each file carefully.",
-        ],
-        ".archive": [
-            "# Archive header",
-            "Compression method: gzip",
-            "Created by archiver v2.1",
-        ],
+    FILE_JUNK = {
+        "sysdump.bak": ["### System Memory Dump ###", "Heap analysis: no anomalies detected.", "Saved core dump."],
+        ".config.old": ["# Legacy config", "user=guest", "enable_logging=true"],
+        "info.tmp": ["[INFO BLOCK]", "Session start: 2025-06-21", "User: ccri_admin"],
+        ".hint_file": ["# HINT: Metadata matters.", "Cross-check all files."],
+        ".summary": ["=== Data Summary Report ===", "Total records: 1024"],
+        "old.log": ["[2025-06-19] INFO User login attempt.", "[2025-06-19] WARN Disk usage 92%."],
+        ".keep.tmp": ["# Temporary File", "Checksum: a9b8c7d6e5f4"],
+        ".notes": ["Research notes.", "TODO: Encryption key rotation."],
+        "readme.txt": ["Welcome.", "Review each file carefully."],
+        ".archive": ["# Archive header", "Created by archiver v2.1"],
     }
 
     def __init__(self, project_root: Path = None, mode="guided"):
-        self.project_root = project_root or self.find_project_root()
-        self.mode = mode
+        self.project_root = project_root or self._find_project_root()
+        self.mode = mode.lower()
+        if self.mode not in ["guided", "solo"]:
+            raise ValueError(f"Invalid mode '{self.mode}'. Expected 'guided' or 'solo'.")
+        
         self.metadata = {}
 
     @staticmethod
-    def find_project_root() -> Path:
-        dir_path = Path.cwd()
-        for parent in [dir_path] + list(dir_path.parents):
+    def _find_project_root() -> Path:
+        curr = Path.cwd()
+        for parent in [curr] + list(curr.parents):
             if (parent / ".ccri_ctf_root").exists():
                 return parent.resolve()
-        print("❌ ERROR: Could not find .ccri_ctf_root marker.", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError("Could not find .ccri_ctf_root marker.")
 
-    def safe_cleanup(self, base_dir: Path):
-        if base_dir.exists():
-            print(f"🗑️ Removing old folder: {base_dir.relative_to(self.project_root)}")
-            try:
-                shutil.rmtree(base_dir)
-            except Exception as e:
-                print(f"⚠️ Could not delete {base_dir.name}: {e}", file=sys.stderr)
-
-    def generate_junk_for_file(self, file_name: str, flag: str = None) -> str:
-        snippets = self.FILE_BASED_JUNK.get(file_name, ["# Generic placeholder content"])
+    def _generate_junk_content(self, file_name: str, flag: str = None) -> str:
+        """Returns randomized file content with or without a flag."""
+        snippets = self.FILE_JUNK.get(file_name, ["# Generic placeholder content"])
         lines = random.choices(snippets, k=random.randint(3, 7))
-        insert_pos = random.randint(0, len(lines))
-        lines.insert(insert_pos, flag if flag else "# [No sensitive data found here]")
+        if flag:
+            insert_pos = random.randint(0, len(lines))
+            lines.insert(insert_pos, flag)
         return "\n".join(lines)
 
-    def create_folder_structure(self, base_dir: Path, real_flag: str, fake_flags: list):
-        self.safe_cleanup(base_dir)
+    def embed_flags(self, challenge_folder: Path, real_flag: str, fake_flags: list):
+        """Creates the folder structure and hides flags in files."""
+        # 1. Cleanup
+        if challenge_folder.exists():
+            shutil.rmtree(challenge_folder)
+        challenge_folder.mkdir(parents=True, exist_ok=True)
 
-        try:
-            base_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            print(f"❌ Failed to prepare folder structure: {e}", file=sys.stderr)
-            sys.exit(1)
-
+        # 2. Map files to locations
         all_files = []
-        for folder_name, files in self.FOLDERS_AND_FILES.items():
-            folder_path = base_dir / folder_name
-            folder_path.mkdir(parents=True, exist_ok=True)
-            for file_name in files:
-                file_path = folder_path / file_name
-                all_files.append(file_path)
+        for folder, files in self.FOLDERS_AND_FILES.items():
+            folder_path = challenge_folder / folder
+            folder_path.mkdir(exist_ok=True)
+            for f in files:
+                all_files.append(folder_path / f)
 
-        flag_files = random.sample(all_files, 5)
-        real_flag_file = flag_files[0]
-        fake_flag_files = flag_files[1:]
+        # 3. Assign flags to files
+        all_flags = fake_flags + [real_flag]
+        random.shuffle(all_flags)
+        
+        # Select 5 files to hold flags
+        target_files = random.sample(all_files, len(all_flags))
+        flag_map = {path: flag for path, flag in zip(target_files, all_flags)}
 
-        print(f"🎭 Fake flags: {', '.join(fake_flags)}")
-
+        # 4. Write files
         for file_path in all_files:
-            try:
-                if file_path == real_flag_file:
-                    content = self.generate_junk_for_file(file_path.name, real_flag)
-                elif file_path in fake_flag_files:
-                    fake_flag = fake_flags.pop()
-                    content = self.generate_junk_for_file(file_path.name, fake_flag)
-                else:
-                    content = self.generate_junk_for_file(file_path.name)
-                file_path.write_text(content)
-            except Exception as e:
-                print(f"❌ Failed to write to {file_path.relative_to(self.project_root)}: {e}", file=sys.stderr)
+            flag = flag_map.get(file_path)
+            content = self._generate_junk_content(file_path.name, flag)
+            file_path.write_text(content)
 
-        print(f"✅ Real flag hidden in: {real_flag_file.relative_to(base_dir)}")
-        print("📁 Folder structure created with embedded flags.")
+        print(f"📁 Created hidden file structure in: {challenge_folder.relative_to(self.project_root)}")
 
+        # 5. Metadata
         self.metadata = {
             "real_flag": real_flag,
-            "challenge_folder": str(base_dir.relative_to(self.project_root)),
+            "challenge_folder": str(challenge_folder.relative_to(self.project_root)),
             "unlock_method": "Search recursively for the flag in hidden files",
             "hint": "Use grep -R or find/strings to locate the flag in junk/"
         }
@@ -155,10 +99,9 @@ class HiddenFlagGenerator:
     def generate_flag(self, challenge_folder: Path) -> str:
         real_flag = FlagUtils.generate_real_flag()
         fake_flags = [FlagUtils.generate_fake_flag() for _ in range(4)]
-
+        
         while real_flag in fake_flags:
             real_flag = FlagUtils.generate_real_flag()
 
-        self.create_folder_structure(challenge_folder / "junk", real_flag, fake_flags)
-        print(f"✅ {self.mode.capitalize()} flag: {real_flag}")
+        self.embed_flags(challenge_folder / "junk", real_flag, fake_flags)
         return real_flag

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
+
 import sys
-import os
 from pathlib import Path
-from common import find_project_root, load_unlock_data, get_ctf_mode
+from common import find_project_root, load_unlock_data, get_challenge_file
 
 CHALLENGE_ID = "03_ROT13"
 
@@ -18,38 +18,37 @@ def rot13(text: str) -> str:
             result.append(c)
     return "".join(result)
 
-def validate(mode="guided", challenge_id=CHALLENGE_ID) -> bool:
+def validate() -> bool:
     root = find_project_root()
-    data = load_unlock_data(root, challenge_id)
-    flag = data.get("real_flag")
+    unlock = load_unlock_data(root, CHALLENGE_ID)
+    real_flag = unlock.get("real_flag")
 
-    base_path = "challenges_solo" if mode == "solo" else "challenges"
+    if not real_flag:
+        print(f"❌ ERROR: Real flag missing in {CHALLENGE_ID} metadata.", file=sys.stderr)
+        return False
 
-    # 🧪 Check for sandbox override
-    sandbox_override = os.environ.get("CCRI_SANDBOX")
-    if sandbox_override:
-        input_path = Path(sandbox_override) / "cipher.txt"
-    else:
-        input_path = root / base_path / challenge_id / "cipher.txt"
+    # Get path using our shared helper from common.py
+    input_path = get_challenge_file(root, CHALLENGE_ID, unlock)
 
     if not input_path.is_file():
-        print(f"❌ Input file not found: {input_path}", file=sys.stderr)
+        print(f"❌ ERROR: Cipher file not found at {input_path}", file=sys.stderr)
         return False
 
     try:
-        decoded = "\n".join(rot13(line) for line in input_path.read_text(encoding="utf-8").splitlines())
+        # Decode the file line by line
+        lines = input_path.read_text(encoding="utf-8").splitlines()
+        decoded = "\n".join(rot13(line) for line in lines)
     except Exception as e:
-        print(f"❌ Failed to decode cipher file: {e}", file=sys.stderr)
+        print(f"❌ Failed to read or decode cipher file: {e}", file=sys.stderr)
         return False
 
-    if flag in decoded:
-        print(f"✅ Validation success: found flag {flag}")
+    if real_flag in decoded:
+        print(f"✅ Validation success: found flag {real_flag}")
         return True
     else:
-        print(f"❌ Validation failed: flag {flag} not found in decoded content", file=sys.stderr)
+        print(f"❌ Validation failed: flag {real_flag} not found in decoded content", file=sys.stderr)
         return False
 
 if __name__ == "__main__":
-    mode = get_ctf_mode()
-    success = validate(mode=mode)
+    success = validate()
     sys.exit(0 if success else 1)

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
+
 import sys
-import os
 import re
 from pathlib import Path
-from common import find_project_root, load_unlock_data, get_ctf_mode
+from common import find_project_root, load_unlock_data, get_challenge_file, get_ctf_mode
 
 CHALLENGE_ID = "04_Vigenere"
 
 def vigenere_decrypt(ciphertext: str, key: str) -> str:
+    """Apply Vigenère cipher decryption."""
     result = []
     key = key.lower()
     key_len = len(key)
@@ -27,30 +28,26 @@ def vigenere_decrypt(ciphertext: str, key: str) -> str:
     return ''.join(result)
 
 def extract_flag(text: str) -> str:
+    """Finds the flag format using regex."""
     match = re.search(r"CCRI-[A-Z0-9]{4}-\d{4}", text)
     return match.group(0) if match else ""
 
-def validate(mode="guided", challenge_id=CHALLENGE_ID) -> bool:
+def validate() -> bool:
     root = find_project_root()
-    data = load_unlock_data(root, challenge_id)
-    expected_flag = data.get("real_flag")
-    key = data.get("vigenere_key")
+    unlock = load_unlock_data(root, CHALLENGE_ID)
+    
+    expected_flag = unlock.get("real_flag")
+    key = unlock.get("vigenere_key")
 
     if not expected_flag or not key:
-        print("❌ ERROR: Missing flag or Vigenère key in unlock data.", file=sys.stderr)
+        print(f"❌ ERROR: Missing flag or Vigenère key in {CHALLENGE_ID} metadata.", file=sys.stderr)
         return False
 
-    file_rel = f"challenges_solo/{challenge_id}/cipher.txt" if mode == "solo" else data.get("challenge_file", f"challenges/{challenge_id}/cipher.txt")
+    # Get path using our shared helper from common.py
+    input_path = get_challenge_file(root, CHALLENGE_ID, unlock)
 
-    # 🧪 Sandbox override support
-    sandbox_override = os.environ.get("CCRI_SANDBOX")
-    if sandbox_override:
-        input_path = Path(sandbox_override) / "cipher.txt"
-    else:
-        input_path = root / file_rel
-
-    if not input_path.exists():
-        print(f"❌ Input file not found: {input_path}", file=sys.stderr)
+    if not input_path.is_file():
+        print(f"❌ ERROR: Cipher file not found at {input_path}", file=sys.stderr)
         return False
 
     try:
@@ -69,10 +66,9 @@ def validate(mode="guided", challenge_id=CHALLENGE_ID) -> bool:
         print(f"✅ Validation success: found flag {found_flag}")
         return True
     else:
-        print(f"❌ Incorrect flag: found {found_flag}, expected {expected_flag}", file=sys.stderr)
+        print(f"❌ Validation failed: found {found_flag}, expected {expected_flag}", file=sys.stderr)
         return False
 
 if __name__ == "__main__":
-    mode = get_ctf_mode()
-    success = validate(mode=mode)
+    success = validate()
     sys.exit(0 if success else 1)

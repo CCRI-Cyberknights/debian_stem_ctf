@@ -1,4 +1,4 @@
-# 🤝 Contributing to `stemday_2025` (Admin-Only)
+# 🤝 Contributing to `CCRI STEMDAY CTF` (Admin-Only)
 
 Welcome to the **CCRI CyberKnights STEM Day CTF Project!** 🎉
 This repository contains **all admin tools, source challenges, and packaging scripts** used to create the student VM and the public takehome version.
@@ -15,7 +15,7 @@ We build three different versions from this single source of truth.
 ### 1. Admin Repo (This Source)
 *The development environment containing all tools and secrets.*
 ```text
-stemday_2025/
+stem_ctf/
 ├── challenges/              # Exploration (.explore.py + .coach.py)
 ├── challenges_solo/         # Solo challenges (README only)
 ├── web_version/             # Student-facing portal
@@ -37,7 +37,7 @@ stemday_2025/
 ### 2. Takehome / Public Repo
 *Built via `copy_takehome_ccri_ctf.py` for public GitHub release.*
 ```text
-stemday_2025_takehome/
+ctf_takehome/
 ├── challenges/
 ├── challenges_solo/
 ├── web_version/
@@ -53,7 +53,7 @@ stemday_2025_takehome/
 ### 3. Student VM (Event Day)
 *Deployed via `copy_ccri_ctf.py` to the Student User.*
 ```text
-/home/ccri_stem/Desktop/stemday_2025/
+/home/stem_ctf/Desktop/ccri_ctf/
 ├── challenges/              # Guided mode
 ├── challenges_solo/         # Hard mode
 ├── web_version/
@@ -72,14 +72,14 @@ stemday_2025_takehome/
 1.  **Install contributor environment:**
 
     ```bash
-    curl -fsSL [https://raw.githubusercontent.com/CCRI-Cyberknights/stemday_2025/main/setup_contributor.py](https://raw.githubusercontent.com/CCRI-Cyberknights/stemday_2025/main/setup_contributor.py) | python3 -
+    curl -fsSL https://raw.githubusercontent.com/CCRI-Cyberknights/debian_stem_ctf/refs/heads/main/setup_contributor.py | python3 -
     ```
 
 2.  **Clone repo:**
 
     ```bash
-    git clone [https://github.com/CCRI-Cyberknights/stemday_2025.git](https://github.com/CCRI-Cyberknights/stemday_2025.git)
-    cd stemday_2025
+    git clone https://github.com/CCRI-Cyberknights/debian_stem_ctf.git
+    cd debian_stem_ctf
     ```
 
 3.  **Create a branch for your work:**

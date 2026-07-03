@@ -1,108 +1,78 @@
 #!/usr/bin/env python3
 
-from pathlib import Path
-import random
-import subprocess
 import sys
 import shutil
+import subprocess
+import random
+from pathlib import Path
 from flag_generators.flag_helpers import FlagUtils
-
 
 class MetadataFlagGenerator:
     """
     Generator for the Metadata challenge.
     Embeds real and fake flags into EXIF metadata of capybara.jpg.
-    Stores unlock metadata but leaves writing to master script.
     """
 
     def __init__(self, project_root: Path = None, mode="guided"):
-        self.project_root = project_root or self.find_project_root()
-        self.mode = mode  # guided or solo
+        self.project_root = project_root or self._find_project_root()
+        self.mode = mode.lower()
+        if self.mode not in ["guided", "solo"]:
+            raise ValueError(f"Invalid mode '{self.mode}'. Expected 'guided' or 'solo'.")
+        
         self.generator_dir = Path(__file__).parent.resolve()
         self.source_image = self.generator_dir / "capybara.jpg"
+        
+        self._check_dependencies()
         self.metadata = {}
 
     @staticmethod
-    def find_project_root() -> Path:
-        """Walk up directories until .ccri_ctf_root is found."""
-        dir_path = Path.cwd()
-        for parent in [dir_path] + list(dir_path.parents):
+    def _find_project_root() -> Path:
+        curr = Path.cwd()
+        for parent in [curr] + list(curr.parents):
             if (parent / ".ccri_ctf_root").exists():
                 return parent.resolve()
-        print("❌ ERROR: Could not find .ccri_ctf_root marker. Are you inside the CTF folder?", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError("Could not find .ccri_ctf_root marker.")
 
-    def safe_cleanup(self, challenge_folder: Path):
-        """Remove capybara.jpg and exiftool backup if present."""
-        dest_image = challenge_folder / "capybara.jpg"
-        backup_file = dest_image.with_suffix(dest_image.suffix + "_original")
+    def _check_dependencies(self):
+        if not shutil.which("exiftool"):
+            raise RuntimeError("The 'exiftool' utility is not installed. Run 'apt install libimage-exiftool-perl'.")
 
-        for file in [dest_image, backup_file]:
-            if file.exists():
-                try:
-                    file.unlink()
-                    print(f"🗑️ Removed old file: {file.relative_to(self.project_root)}")
-                except Exception as e:
-                    print(f"⚠️ Could not delete {file.name}: {e}", file=sys.stderr)
+    def _run_cmd(self, cmd: list, description: str):
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"Failed to {description}:\n{result.stderr.strip()}")
 
     def embed_flags(self, challenge_folder: Path, real_flag: str, fake_flags: list):
-        """Copy capybara.jpg and embed flags into EXIF metadata."""
-        dest_image = challenge_folder / "capybara.jpg"
-
-        if shutil.which("exiftool") is None:
-            print("❌ exiftool is not installed.", file=sys.stderr)
-            sys.exit(1)
-
+        """Copies image and embeds all flags into EXIF tags in a single pass."""
         challenge_folder.mkdir(parents=True, exist_ok=True)
-        self.safe_cleanup(challenge_folder)
+        dest_image = challenge_folder / "capybara.jpg"
+        
+        # 1. Copy source
+        if not self.source_image.exists():
+            raise FileNotFoundError(f"Source image missing: {self.source_image}")
+        dest_image.write_bytes(self.source_image.read_bytes())
 
-        try:
-            if not self.source_image.exists():
-                raise FileNotFoundError(f"❌ Source image not found: {self.source_image}")
-            dest_image.write_bytes(self.source_image.read_bytes())
-            print(f"📂 Copied {self.source_image.name} to {challenge_folder.relative_to(self.project_root)}")
-        except Exception as e:
-            print(f"❌ Failed to copy image: {e}", file=sys.stderr)
-            sys.exit(1)
-
+        # 2. Prepare Metadata Tags
         random.shuffle(fake_flags)
-        metadata_tags = {
+        tags = {
             "ImageDescription": fake_flags[0],
             "Artist": fake_flags[1],
             "Copyright": fake_flags[2],
             "XPKeywords": fake_flags[3],
-            "UserComment": real_flag  # Real flag
+            "UserComment": real_flag
         }
 
-        print("📝 Embedding flags into EXIF metadata...")
-        try:
-            for tag, value in metadata_tags.items():
-                subprocess.run(
-                    ["exiftool", f"-{tag}={value}", str(dest_image)],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
-        except subprocess.CalledProcessError as e:
-            print(f"❌ exiftool failed: {e.stderr.strip()}", file=sys.stderr)
-            sys.exit(1)
-        except Exception as e:
-            print(f"❌ Unexpected error while embedding metadata: {e}", file=sys.stderr)
-            sys.exit(1)
+        # 3. Build single exiftool command
+        # -overwrite_original prevents creation of _original files
+        cmd = ["exiftool", "-overwrite_original"]
+        for tag, val in tags.items():
+            cmd.append(f"-{tag}={val}")
+        cmd.append(str(dest_image))
 
-        backup_file = dest_image.with_suffix(dest_image.suffix + "_original")
-        if backup_file.exists():
-            try:
-                backup_file.unlink()
-                print("🗑️ Cleaned up exiftool backup file.")
-            except Exception as e:
-                print(f"⚠️ Could not remove backup file: {e}", file=sys.stderr)
+        self._run_cmd(cmd, "embed EXIF metadata")
+        print(f"📝 Embedded metadata tags into {dest_image.name}")
 
-        print(f"🎭 Fake flags: {', '.join(fake_flags)}")
-        print(f"✅ Embedded real flag in UserComment: {real_flag}")
-
-        # Store unlock metadata
+        # 4. Save Metadata
         self.metadata = {
             "real_flag": real_flag,
             "challenge_file": str(dest_image.relative_to(self.project_root)),
@@ -111,21 +81,15 @@ class MetadataFlagGenerator:
         }
 
     def generate_flag(self, challenge_folder: Path) -> str:
-        """Generate flags, embed them in metadata, and return the real flag."""
-        real_flag = FlagUtils.generate_real_flag()  # No replace here
+        real_flag = FlagUtils.generate_real_flag()
+        # Ensure exactly 4 unique fake flags
+        fake_set = set()
+        while len(fake_set) < 4:
+            fake_set.add(FlagUtils.generate_fake_flag())
+        fake_flags = list(fake_set)
 
-        fake_flags = set()
-        attempts = 0
-        while len(fake_flags) < 4:
-            fake = FlagUtils.generate_fake_flag()
-            if fake != real_flag:
-                fake_flags.add(fake)
-            attempts += 1
-            if attempts > 1000:
-               raise RuntimeError("❌ Too many attempts generating unique fake flags.")
-        fake_flags = list(fake_flags)
+        while real_flag in fake_flags:
+            real_flag = FlagUtils.generate_real_flag()
 
         self.embed_flags(challenge_folder, real_flag, fake_flags)
-        print(f"✅ {self.mode.capitalize()} flag: {real_flag}")
         return real_flag
-
