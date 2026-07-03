@@ -1,62 +1,61 @@
 #!/usr/bin/env python3
-import os
 import sys
 import subprocess
 import time
 import re
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen, safe_input
 
 # === Config ===
 SCRIPT_NAME = "broken_flag.py"
 OUTPUT_FLAG_FILE = "flag.txt"
 
-def get_path(filename):
-    """Ensure the file is saved next to this script, regardless of where it's run from."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-
-def run_python_script(script_path):
+def run_python_script(script_path: Path) -> str:
+    """Executes the target python script using the synchronized virtual environment interpreter."""
     try:
         result = subprocess.run(
-            [sys.executable, script_path],
+            [sys.executable, str(script_path)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
         return result.stdout.strip()
     except FileNotFoundError:
-        print_error("Python interpreter not found.")
+        print_error("Python interpreter context was not found.")
         sys.exit(1)
 
-def patch_operator_in_script(script_path, new_operator):
+def patch_operator_in_script(script_path: Path, new_operator: str):
+    """Parses and updates the math operator inside the target script natively via Pathlib."""
     try:
-        with open(script_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        with open(script_path, "w", encoding="utf-8") as f:
-            for line in lines:
-                if "code = part1" in line:
-                    # Replace whatever operator is there with the new one
-                    # Regex looks for: part1 [any char] part2
-                    new_line = re.sub(r"part1\s*[\+\-\*\/]\s*part2", f"part1 {new_operator} part2", line)
-                    f.write(new_line)
-                else:
-                    f.write(line)
+        lines = script_path.read_text(encoding="utf-8").splitlines()
+        new_lines = []
+        
+        for line in lines:
+            if "code = part1" in line:
+                # Replace the current mathematical operator structure cleanly using regex arrays
+                new_line = re.sub(r"part1\s*[\+\-\*\/]\s*part2", f"part1 {new_operator} part2", line)
+                new_lines.append(new_line)
+            else:
+                new_lines.append(line)
+                
+        script_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
     except Exception as e:
-        print_error(f"Error patching script: {e}")
+        print_error(f"Error patching target code workspace: {e}")
         sys.exit(1)
 
 def main():
     # 1. Setup
     resize_terminal(35, 90)
     
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    broken_script = get_path(SCRIPT_NAME)
-    flag_output_file = get_path(OUTPUT_FLAG_FILE)
+    script_dir = Path(__file__).resolve().parent
+    broken_script = script_dir / SCRIPT_NAME
+    flag_output_file = script_dir / OUTPUT_FLAG_FILE
 
-    if not os.path.isfile(broken_script):
-        print_error(f"{SCRIPT_NAME} not found in {script_dir}.")
+    if not broken_script.is_file():
+        print_error(f"{SCRIPT_NAME} not found inside scope: {script_dir.as_posix()}.")
         sys.exit(1)
 
     # 2. Mission Briefing
@@ -66,7 +65,6 @@ def main():
     print(f"🔧 Strategy: {Colors.BOLD}Debugging{Colors.END}\n")
     print("🎯 Goal: Fix the logic error in the script to reveal the flag.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Problem:** The script executes, but the math logic is flawed.")
     print("   ➤ **The Clue:** It calculates a 4-digit code using `part1` and `part2`.")
@@ -81,19 +79,19 @@ def main():
     
     print("-" * 50)
     try:
-        with open(broken_script, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            for line in lines:
-                # Highlight the broken logic line
-                if "code = part1" in line:
-                    print(f"{Colors.YELLOW}{Colors.BOLD}>> {line.strip()} <<  (THIS IS THE BUG){Colors.END}")
-                else:
-                    print(line.rstrip())
+        lines = broken_script.read_text(encoding="utf-8").splitlines()
+        for line in lines:
+            # Highlight the broken logic target line
+            if "code = part1" in line:
+                print(f"{Colors.YELLOW}{Colors.BOLD}>> {line.strip()} <<  (THIS IS THE BUG){Colors.END}")
+            else:
+                print(line)
     except Exception as e:
-        print_error(f"Could not read script: {e}")
+        print_error(f"Could not read script payload structure: {e}")
+        
     print("-" * 50 + "\n")
     
-    print(f"👀 Notice the line highlighted above? That determines the security code.")
+    print("👀 Notice the line highlighted above? That determines the security code.")
     print("   We need to change that operator to make the math work out.\n")
 
     require_input("Type 'run' to test the current broken script: ", "run")
@@ -108,17 +106,17 @@ def main():
         print(output)
         print("-" * 50 + "\n")
 
-        # Check for success
-        # The script prints "Generated Flag: CCRI-AAAA-1111" on success
+        # Verify operational execution state outcomes
         if "CCRI-" in output and "INVALID" not in output and "Error" not in output:
-             # Find the flag line for saving
-            match = re.search(r"CCRI-[A-Z]{4}-\d{4}", output)
+            match = re.search(r"CCRI-[A-Z0-9]{4}-\d{4}", output)
             if match:
                 flag = match.group(0)
                 print_success(f"SUCCESS! Logic Fixed. Flag: {Colors.BOLD}{flag}{Colors.END}")
-                with open(flag_output_file, "w") as f:
-                    f.write(flag + "\n")
-                print(f"📁 Saved to: {Colors.BOLD}{OUTPUT_FLAG_FILE}{Colors.END}")
+                try:
+                    flag_output_file.write_text(flag + "\n", encoding="utf-8")
+                    print(f"📁 Saved to: {Colors.BOLD}{OUTPUT_FLAG_FILE}{Colors.END}")
+                except Exception as e:
+                    print_error(f"Failed to record resolved cleartext flag data to disk: {e}")
                 pause("Press ENTER to finish...")
                 break
 
@@ -131,7 +129,8 @@ def main():
         print("   [/] Division       (part1 / part2)")
         print("   [q] Quit")
         
-        op = input(f"\n{Colors.YELLOW}Enter operator (+, -, *, /): {Colors.END}").strip()
+        # Wrapped input collection using safe_input wrapper mechanics
+        op = safe_input(f"\n{Colors.YELLOW}Enter operator (+, -, *, /): {Colors.END}").strip()
         
         if op == 'q':
             break
@@ -141,7 +140,7 @@ def main():
             patch_operator_in_script(broken_script, op)
             spinner("Updating code")
         else:
-            print(f"{Colors.RED}❌ Invalid operator.{Colors.END}")
+            print(f"{Colors.RED}❌ Invalid operator definition context selected.{Colors.END}")
             time.sleep(1)
 
 if __name__ == "__main__":

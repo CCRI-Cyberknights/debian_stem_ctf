@@ -1,8 +1,7 @@
-# 🖥️ Process Inspection
+# 🖥️ Challenge 15: Process Inspection
 
 **Mission Briefing:**
-Operatives have planted a rogue process on the system to exfiltrate data.
-You have obtained a snapshot (`ps_dump.txt`) of the system’s running processes at the time of the incident.
+Operatives have planted a rogue process on the system to exfiltrate data. You have obtained a snapshot (`ps_dump.txt`) of the system’s running processes at the time of the incident.
 
 ## 🧠 Intelligence Report
 * **The Concept:** Every program running on a computer is a "process." Processes often accept **Command Line Arguments** (flags) when they start.
@@ -12,8 +11,9 @@ You have obtained a snapshot (`ps_dump.txt`) of the system’s running processes
 
 **Your Goal:** Analyze the process list, check the command arguments, and identify the process carrying the real agency flag.
 
-## 📂 Files in this folder
-* `ps_dump.txt` – A snapshot of running processes and their arguments.
+## 📂 Files in This Folder
+* `ps_dump.txt`: A snapshot of running processes and their arguments.
 
 ---
-**🏁 Flag format:** `CCRI-AAAA-1111`
+
+**🏁 Flag Format:** `CCRI-AAAA-1111`

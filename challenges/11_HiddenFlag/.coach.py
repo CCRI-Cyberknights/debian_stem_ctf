@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
+
+def cleanup():
+    """Ensures a clean starting environment by purging any stale flags."""
+    Path("flag.txt").unlink(missing_ok=True)
 
 def main():
     bot = Coach("Recursive Hunter (grep -r)")
+    
+    # Ensure clean slate before initialization
+    cleanup()
+    
     bot.start()
 
     try:
@@ -19,11 +28,10 @@ def main():
             command_to_display="cd challenges/11_HiddenFlag"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/11_HiddenFlag"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/11_HiddenFlag")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery (The Haystack)
         bot.teach_step(
@@ -42,10 +50,11 @@ def main():
             ),
             command_to_display="cd junk"
         )
-        # === SYNC DIRECTORY ===
-        if os.path.exists("junk"):
-            os.chdir("junk")
-        # ======================
+        
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_junk = Path("junk")
+        if target_junk.is_dir():
+            os.chdir(target_junk)
 
         # STEP 4: GREP (Find the path)
         bot.teach_loop(
@@ -54,28 +63,20 @@ def main():
                 "Use `grep` with the `-r` (recursive) flag to search every file in the current folder (`.`)."
             ),
             command_template="grep -r \"CCRI\" .",
-            
             command_prefix="grep -r ",
-            
-            # Regex matches: grep -r "CCRI" .
             command_regex=r"^grep -r \"CCRI\" \.$"
         )
 
         # STEP 5: CAT (Capture the Flag)
         bot.teach_loop(
             instruction=(
-                "Look at the output above. `grep` found a match and printed the path (e.g., `./dirs/.hidden`).\n\n"
+                "Look at the output above. `grep` found a match and printed the path (for example, `./dirs/.hidden`).\n\n"
                 "**Copy that path.**\n"
                 "Run `cat` on that path and save the output to 'flag.txt'."
             ),
-            # Clear visual placeholder for the student
             command_template="cat [PATH_FROM_ABOVE] > flag.txt",
-            
             command_prefix="cat ",
-            
-            # Regex allows any standard file path characters
             command_regex=r"^cat [\w\-\./]+ > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
         

@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
+
+def cleanup():
+    """Ensures a clean starting environment by purging any stale outputs."""
+    Path("results.txt").unlink(missing_ok=True)
+    Path("flag.txt").unlink(missing_ok=True)
 
 def main():
     bot = Coach("QR Code Automator")
+    
+    # Ensure clean slate before initialization
+    cleanup()
+    
     bot.start()
 
     try:
@@ -19,11 +29,10 @@ def main():
             command_to_display="cd challenges/12_QRCodes"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/12_QRCodes"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/12_QRCodes")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -59,7 +68,7 @@ def main():
         bot.teach_step(
             instruction=(
                 "That worked, but we have 5 images. We don't want to type the command 5 times.\n"
-                "We can use the asterisk `*` (wildcard) to match **ALL** png files at once.\n\n"
+                "We can use the asterisk `*` (wildcard) to match ALL png files at once.\n\n"
                 "Run `zbarimg *.png` to scan everything instantly."
             ),
             command_to_display="zbarimg *.png"
@@ -69,16 +78,12 @@ def main():
         bot.teach_loop(
             instruction=(
                 "That output scrolled by fast!\n"
-                "Let's run the bulk scan again, but this time **save the results** to a file.\n"
+                "Let's run the bulk scan again, but this time save the results to a file.\n"
                 "We will call it `results.txt`."
             ),
-            # Template showing the workflow
             command_template="zbarimg *.png > results.txt",
-            
-            # Strict regex validation
             command_prefix="zbarimg *.png > ",
             command_regex=r"^zbarimg \*\.png > results\.txt$",
-            
             clean_files=["results.txt"]
         )
 
@@ -87,15 +92,11 @@ def main():
             instruction=(
                 "Now we have `results.txt` full of raw data.\n"
                 "We need to filter it for the 'CCRI' flag.\n"
-                "Use `grep` to find the flag and **save it** to 'flag.txt'."
+                "Use `grep` to find the flag and save it to 'flag.txt'."
             ),
             command_template="grep \"CCRI\" results.txt > flag.txt",
-            
             command_prefix="grep ",
-            
-            # Regex: grep "CCRI" results.txt > flag.txt
             command_regex=r"^grep \"CCRI\" results\.txt > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 

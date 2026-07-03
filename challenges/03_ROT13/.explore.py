@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
-import os
 import sys
 import time
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from exploration_core import Colors, header, pause, require_input, clear_screen, resize_terminal, print_success, print_error, print_info
 
 # === Config ===
 INPUT_FILE = "cipher.txt"
 OUTPUT_FILE = "decoded_output.txt"
-
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
 
 # === Rotation Logic (Python Implementation for Animation) ===
 def rotate_text(text: str, shift: int) -> str:
@@ -42,7 +39,7 @@ def render_frame(lines, footer_lines=[]):
         print(f_line)
 
 # === Animation Logic ===
-def animate_decryption_wipe(lines, final_output_path):
+def animate_decryption_wipe(lines, final_output_path: Path):
     # ROT13 is shift 13. We animate shifting 1 step at a time until 13.
     total_frames = 13
     
@@ -50,8 +47,7 @@ def animate_decryption_wipe(lines, final_output_path):
     for i in range(1, total_frames + 1):
         shift = i  # Shift forward by i steps
         
-        # We apply the shift to the *original* ROT13 text to move it towards plain text
-        # (Since ROT13 is symmetrical, +13 is the same as -13)
+        # We apply the shift to the original ROT13 text to move it towards plain text
         current_frame_lines = [rotate_text(line, shift) for line in lines]
         
         status_footer = [
@@ -67,7 +63,7 @@ def animate_decryption_wipe(lines, final_output_path):
     
     success_footer = [
         f"{Colors.GREEN}✅ Decryption Complete.{Colors.END}",
-        f"💾 Saved to: {Colors.BOLD}{os.path.basename(final_output_path)}{Colors.END}",
+        f"💾 Saved to: {Colors.BOLD}{final_output_path.name}{Colors.END}",
         "",
         f"{Colors.CYAN}🧠 Hint: The flag format is CCRI-AAAA-1111{Colors.END}",
         "📋 Copy the flag above and paste it into the scoreboard."
@@ -87,16 +83,16 @@ def main():
     print(f"📄 File to analyze: {Colors.BOLD}{INPUT_FILE}{Colors.END}")
     print("🎯 Goal: Restore the intercepted message to its original state.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ The message is obfuscated using **ROT13** (Rotate 13).")
     print("   ➤ This is a substitution cipher that shifts every letter 13 places.")
     print("   ➤ It is symmetrical: applying the shift again restores the text.\n")
     
-    input_path = get_path(INPUT_FILE)
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    input_path = script_dir / INPUT_FILE
+    output_path = script_dir / OUTPUT_FILE
 
-    if not os.path.exists(input_path) or os.path.getsize(input_path) == 0:
+    if not input_path.is_file() or input_path.stat().st_size == 0:
         print_error(f"{INPUT_FILE} is missing or empty.")
         pause("Press ENTER to close this terminal...")
         sys.exit(1)
@@ -110,15 +106,18 @@ def main():
     print("The command looks like this:\n")
     print(f"   {Colors.GREEN}cat {INPUT_FILE} | tr 'A-Za-z' 'N-ZA-Mn-za-m'{Colors.END}\n")
     print("🔍 Command breakdown:")
-    print(f"   {Colors.BOLD}tr{Colors.END}             → The 'translate' tool")
+    print(f"   {Colors.BOLD}tr{Colors.END}              → The 'translate' tool")
     print(f"   {Colors.BOLD}'A-Za-z'{Colors.END}       → Input alphabet (A-Z, a-z)")
     print(f"   {Colors.BOLD}'N-ZA-Mn-za-m'{Colors.END} → Output alphabet (shifted by 13 places)\n")
     
     require_input("Type 'run' to start the decryption visualizer: ", "run")
 
-    # Load content
-    with open(input_path, "r", encoding="utf-8") as f:
-        lines = f.read().splitlines()
+    # Load content securely via Pathlib
+    try:
+        lines = input_path.read_text(encoding="utf-8").splitlines()
+    except Exception as e:
+        print_error(f"Failed to read cipher target payload: {e}")
+        sys.exit(1)
 
     # Show initial state
     render_frame(lines, [
@@ -131,9 +130,11 @@ def main():
     # Run Animation
     decoded_lines = animate_decryption_wipe(lines, output_path)
     
-    # Save output
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(decoded_lines) + "\n")
+    # Save output using strict utf-8 encoding layers
+    try:
+        output_path.write_text("\n".join(decoded_lines) + "\n", encoding="utf-8")
+    except Exception as e:
+        print_error(f"Failed to save decoded output structure to disk: {e}")
 
     print()
     pause("Press ENTER to close this terminal...")

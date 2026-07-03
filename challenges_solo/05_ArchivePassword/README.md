@@ -1,8 +1,7 @@
 # 🔓 Challenge 05: ZIP File Crack
 
 **Mission Briefing:**
-You have recovered a mysterious ZIP archive (`secret.zip`) from a CryptKeepers exfiltration attempt. It is locked with a password.
-However, during the data recovery, we also found a text file (`wordlist.txt`) containing thousands of potential passwords used by the agent.
+You have recovered a mysterious ZIP archive (`secret.zip`) from a CryptKeepers exfiltration attempt. It is locked with a password. However, during the data recovery, we also found a text file (`wordlist.txt`) containing thousands of potential passwords used by the agent.
 
 ## 🧠 Intelligence Report
 * **The Lock:** Standard ZIP encryption.
@@ -14,22 +13,22 @@ However, during the data recovery, we also found a text file (`wordlist.txt`) co
 *Notes from the field:*
 
 > "Lazy OPSEC at its finest. They always reuse the same weak passwords from this specific list.
->
+> 
 > You don't need to be a genius to break this; you just need to be persistent. If you have `wordlist.txt`, you already have the key—you just need a tool to find which specific line opens the lock. Once you're inside, don't celebrate yet. The payload is likely encoded again."
 
 ## 📂 Files in This Folder
-* `secret.zip` — The password-protected archive.
-* `wordlist.txt` — A list of common passwords to attempt.
+* `secret.zip`: The password-protected archive.
+* `wordlist.txt`: A list of common passwords to attempt.
 
 ---
 
-## 🛠 Tools & Techniques
+## 🛠️ Tools & Techniques
 
-While you *could* try passwords manually, automation is the key here.
+While you *could* try passwords manually, automation is the key here. Use these pre-installed utilities to conduct the dictionary attack:
 
 | Tool | Purpose | Usage Example |
 | :--- | :--- | :--- |
-| **fcrackzip** | A fast ZIP password cracker. The `-D` flag tells it to use a dictionary (wordlist). | `fcrackzip -u -D -p wordlist.txt secret.zip` |
+| **fcrackzip** | A fast ZIP password cracker. The `-D` flag uses a dictionary (wordlist). | `fcrackzip -u -D -p wordlist.txt secret.zip` |
 | **John the Ripper** | Advanced cracking tool. Requires converting the zip to a hash first. | `zip2john secret.zip > hash.txt` then `john hash.txt` |
 | **Bash / Python** | You can script a loop to try passwords using the standard `unzip` command. | *Scripting required (for loops)* |
 | **Base64** | Once the zip is open, use this to decode the inner message. | `base64 -d message.txt` |

@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
+
+def cleanup():
+    """Ensures a clean starting environment by purging any stale output files."""
+    Path("flag.txt").unlink(missing_ok=True)
+    Path("candidates.txt").unlink(missing_ok=True)
 
 def main():
     bot = Coach("Log Analysis (grep)")
+    
+    # Ensure clean slate before initialization
+    cleanup()
+    
     bot.start()
 
     try:
@@ -19,11 +29,10 @@ def main():
             command_to_display="cd challenges/08_FakeAuthLog"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/08_FakeAuthLog"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/08_FakeAuthLog")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -42,7 +51,7 @@ def main():
                 "Use `head` to look at just the first 20 lines to understand the format."
             ),
             command_to_display="head -n 20 auth.log"
-        )
+            )
 
         # STEP 4: Simple Searching + Saving
         bot.teach_loop(
@@ -52,12 +61,8 @@ def main():
                 "**Save the output** to 'flag.txt'."
             ),
             command_template="grep \"CCRI\" auth.log > flag.txt",
-            
             command_prefix="grep \"CCRI\" auth.log",
-            
-            # Regex enforces the redirection to flag.txt
             command_regex=r"^grep \"CCRI\" auth\.log > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 
@@ -78,13 +83,8 @@ def main():
                 "Run this regex search and save the output to a **new file** called 'candidates.txt'."
             ),
             command_template="grep -E \"[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}\" auth.log > candidates.txt",
-            
             command_prefix="grep -E ",
-            
-            # Use Regex to safely match the complex command string.
-            # We escape the brackets \[ \] and braces \{ \} for the python regex engine.
             command_regex=r"^grep -E \"\[A-Z0-9\]\{4\}-\[A-Z0-9\]\{4\}-\[A-Z0-9\]\{4\}\" auth\.log > candidates\.txt$",
-            
             clean_files=["candidates.txt"]
         )
 

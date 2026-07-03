@@ -2,9 +2,10 @@
 import sys
 import os
 import socket
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
 
 def check_web_server():
@@ -24,9 +25,8 @@ def check_web_server():
         pass
 
 def cleanup_artifacts():
-    """Removes the intel file on exit to leave no trace."""
-    if os.path.exists("flag.txt"):
-        os.remove("flag.txt")
+    """Removes the intel file on exit to leave no trace safely."""
+    Path("flag.txt").unlink(missing_ok=True)
 
 def main():
     check_web_server()
@@ -45,11 +45,10 @@ def main():
             command_to_display="cd challenges/14_InternalPortals"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/14_InternalPortals"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/14_InternalPortals")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: The Test (Curl one)
         bot.teach_step(
@@ -81,16 +80,9 @@ def main():
                 "3. **Save** the result to 'flag.txt'.\n\n"
                 "Construct the command:"
             ),
-            # Template showing the logic
             command_template="curl -s \"http://localhost:5000/internal/{alpha,beta,gamma,delta,omega}\" | grep \"CCRI\" > flag.txt",
-            
-            # Prefix for visual hint
             command_prefix="curl -s ",
-            
-            # Regex to match the brace expansion command
-            # Note: We escape the braces \{ \} for regex
             command_regex=r"^curl -s \"http://localhost:5000/internal/\{alpha,beta,gamma,delta,omega\}\" \| grep \"CCRI\" > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 

@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-import os
-import subprocess
 import sys
+import subprocess
 import socket
 import time
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, print_success, print_error, print_info, resize_terminal, clear_screen, spinner
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, print_success, print_error, print_info, resize_terminal, clear_screen, spinner, safe_input
 
 # === Config ===
 # No external file dependencies
-
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
 
 def check_web_server():
     """Checks if the CTF web server is running on port 5000."""
@@ -50,7 +47,7 @@ def inspect_headers(endpoint_num):
     pause()
 
 def bulk_scan():
-    """Loops through all 5 endpoints."""
+    """Loops through all 5 endpoints to verify response streams."""
     print(f"\n{Colors.CYAN}🔎 Bulk scanning all endpoints...{Colors.END}")
     print(f"💻 Simulation of: {Colors.BOLD}curl -I \"http://localhost:5000/mystery/endpoint_[1-5]\"{Colors.END}\n")
     
@@ -69,11 +66,11 @@ def bulk_scan():
                 text=True
             )
             
-            # Check output for flag
+            # Check output stream entries for a valid flag structure
             if "CCRI-" in result.stdout:
                 print(f" {Colors.GREEN}MATCH FOUND!{Colors.END}")
                 print("-" * 50)
-                # Find the specific line
+                # Parse specific cleartext line
                 for line in result.stdout.splitlines():
                     if "CCRI-" in line:
                         print(f"   {Colors.BOLD}{line.strip()}{Colors.END}")
@@ -103,11 +100,10 @@ def main():
     print(f"🔧 Tool in use: {Colors.BOLD}curl -I{Colors.END}\n")
     print("🎯 Goal: Interrogate the active endpoints to find the hidden header.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Concept:** Web servers send \"invisible data\" (Headers) before content.")
     print("   ➤ **The Lock:** The flag is hidden in a custom header (e.g., `X-Flag`).")
-    print("   ➤ **The Tool:** `curl -I` fetches *only* the headers, skipping the body.\n")
+    print("   ➤ **The Tool:** `curl -I` fetches only the headers, skipping the body.\n")
     
     require_input("Type 'ready' to proceed to reconnaissance: ", "ready")
 
@@ -145,7 +141,8 @@ def main():
         print(f"\n6. {Colors.BOLD}⚡ Run Bulk Scan (Check all at once){Colors.END}")
         print("7. Exit\n")
 
-        choice = input(f"{Colors.YELLOW}Select target (1–7): {Colors.END}").strip()
+        # Route interactive collection using unified safe_input wrapper functionality
+        choice = safe_input(f"{Colors.YELLOW}Select target (1–7): {Colors.END}").strip()
 
         if choice in {"1", "2", "3", "4", "5"}:
             inspect_headers(choice)

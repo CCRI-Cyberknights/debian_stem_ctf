@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-import os
 import sys
 import re
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen, safe_input
 
 # === Config ===
 CIPHER_FILE = "cipher.txt"
@@ -15,7 +15,8 @@ OUTPUT_FILE = "decoded_output.txt"
 def vigenere_decrypt(ciphertext, key):
     result = []
     key = key.lower()
-    if not key: return ciphertext 
+    if not key: 
+        return ciphertext 
     
     key_len = len(key)
     key_indices = [ord(k) - ord('a') for k in key]
@@ -38,17 +39,15 @@ def find_flag(text):
     match = re.search(r"CCRI-[A-Z0-9]{4}-\d{4}", text)
     return match.group(0) if match else None
 
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
-
 # === Main Flow ===
 def main():
     # 1. Setup
     resize_terminal(35, 90)
-    cipher_path = get_path(CIPHER_FILE)
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    cipher_path = script_dir / CIPHER_FILE
+    output_path = script_dir / OUTPUT_FILE
 
-    if not os.path.isfile(cipher_path):
+    if not cipher_path.is_file():
         print_error(f"{CIPHER_FILE} not found.")
         sys.exit(1)
 
@@ -58,18 +57,20 @@ def main():
     print(f"📄 Target File: {Colors.BOLD}{CIPHER_FILE}{Colors.END}")
     print("🎯 Goal: Decrypt the message using the correct Keyword.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Cipher:** Vigenère (Polyalphabetic Substitution).")
     print("   ➤ **The Challenge:** Each letter is shifted differently based on a keyword.")
     print("   ➤ **The Clue:** The admin asked: \"What is the opposite of `logout`?\"\n")
     
-    with open(cipher_path, "r", encoding="utf-8") as f:
-        ciphertext = f.read()
+    try:
+        ciphertext = cipher_path.read_text(encoding="utf-8")
+    except Exception as e:
+        print_error(f"Failed to load cipher text from storage: {e}")
+        sys.exit(1)
 
     require_input("Type 'ready' to understand the decryption logic: ", "ready")
 
-    # 3. Algorithm Explanation (Instead of Tool Provisioning)
+    # 3. Algorithm Explanation
     header("🛠️ Behind the Scenes")
     print("Deciphering Vigenère by hand is tedious. In a real scenario, you would")
     print("write a script to handle the math for you.\n")
@@ -93,7 +94,8 @@ def main():
         print(f"📄 {CIPHER_FILE} (First 80 chars):")
         print(f"> {Colors.YELLOW}{ciphertext[:80]}...{Colors.END}\n")
 
-        key = input(f"{Colors.YELLOW}🔑 Enter the keyword based on the clue (or 'exit'): {Colors.END}").strip().lower()
+        # Utilize unified safe_input to protect terminal loops
+        key = safe_input(f"{Colors.YELLOW}🔑 Enter the keyword based on the clue (or 'exit'): {Colors.END}").strip().lower()
 
         if key == "exit":
             print(f"\n{Colors.CYAN}👋 Exiting.{Colors.END}")
@@ -114,15 +116,16 @@ def main():
         print("=============================")
         print("📄 Resulting Text:")
         print("-" * 50)
-        # Show snippet or full text
         print(plaintext[:500] + ("..." if len(plaintext) > 500 else ""))
         print("-" * 50 + "\n")
 
         if flag:
             print_success(f"SUCCESS! Flag found: {Colors.BOLD}{flag}{Colors.END}")
             print(f"📁 Full output saved to: {Colors.BOLD}{OUTPUT_FILE}{Colors.END}\n")
-            with open(output_path, "w", encoding="utf-8") as f_out:
-                f_out.write(plaintext)
+            try:
+                output_path.write_text(plaintext, encoding="utf-8")
+            except Exception as e:
+                print_error(f"Failed to record decoded data to disk: {e}")
             
             pause("Press ENTER to close this terminal...")
             break
@@ -131,7 +134,7 @@ def main():
             print("   The output is still garbled. That was the wrong key.")
             print(f"   (Hint: Read the clue again. What do you do to start a session?)\n")
             
-            choice = input(f"{Colors.YELLOW}🔁 Try again? (y/n): {Colors.END}").strip().lower()
+            choice = safe_input(f"{Colors.YELLOW}🔁 Try again? (y/n): {Colors.END}").strip().lower()
             if choice == 'n':
                 print(f"\n{Colors.CYAN}👋 Exiting.{Colors.END}")
                 sys.exit(0)

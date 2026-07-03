@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-import os
-import subprocess
 import sys
+import subprocess
 import socket
 import time
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, print_success, print_error, print_info, resize_terminal, clear_screen, spinner
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, print_success, print_error, print_info, resize_terminal, clear_screen, spinner, safe_input
 
 # === Config ===
 # No external file dependencies
-
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
 
 def check_web_server():
     """Checks if the CTF web server is running on port 5000."""
@@ -104,7 +101,7 @@ def bulk_audit(portals_list):
         print_success("Audit complete. Target identified.")
     else:
         print_error("Audit complete. No flags found.")
-    
+        
     pause()
 
 def main():
@@ -118,7 +115,6 @@ def main():
     print(f"🔧 Tool in use: {Colors.BOLD}curl{Colors.END}\n")
     print("🎯 Goal: Retrieve the raw HTML source code to find hidden comments or tags.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Concept:** Browsers \"render\" code, hiding comments and scripts.")
     print("   ➤ **The Strategy:** Source Inspection (bypassing the visual layer).")
@@ -129,10 +125,9 @@ def main():
     # 3. Recon
     header("🔍 Phase 1: Target Identification")
     
-    # Hardcoded fallback since we removed the file reliance
     portals = ["alpha", "beta", "gamma", "delta", "omega"]
 
-    print(f"Scanning local configuration...\n")
+    print("Scanning local configuration...\n")
     print(f"We have identified {len(portals)} targets:")
     for p in portals:
         print(f" - {p}")
@@ -164,7 +159,8 @@ def main():
         print(f"\n6. {Colors.BOLD}⚡ Run Mass Audit (Check all){Colors.END}")
         print("7. Exit\n")
 
-        choice = input(f"{Colors.YELLOW}Select target (1–7): {Colors.END}").strip()
+        # Wrapped terminal option collection inside safe_input container layer
+        choice = safe_input(f"{Colors.YELLOW}Select target (1-7): {Colors.END}").strip()
 
         if choice.isdigit():
             idx = int(choice)
@@ -176,10 +172,10 @@ def main():
                 print(f"\n{Colors.CYAN}👋 Exiting.{Colors.END}")
                 break
             else:
-                print_error("Invalid option.")
+                print_error("Invalid option selection.")
                 time.sleep(1)
         else:
-            print_error("Invalid input.")
+            print_error("Invalid input matrix parameter.")
             time.sleep(1)
 
 if __name__ == "__main__":

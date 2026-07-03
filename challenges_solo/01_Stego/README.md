@@ -1,43 +1,41 @@
-# 🐿️ Challenge 01: Steganography Decode
+# 🛰️ Challenge 02: Intercepted Transmission (Base64)
 
 **Mission Briefing:**
-During the Knights’ investigation into the CryptKeepers, a suspicious image (`squirrel.jpg`) was recovered from a public server.
-Visually, it appears to be a standard photograph of a rodent. However, our analysts have flagged it for containing **hidden data**.
+A recovered message from a compromised CryptKeepers field device appears to contain a secure transmission. The content looks like random gibberish, but it follows a very specific pattern often used to bypass text filters.
 
 ## 🧠 Intelligence Report
-* **The Concept:** **Steganography** is the art of hiding information inside another file (like an image or audio track) so that the original appears unchanged to the naked eye. Unlike encryption, which makes data unreadable, steganography makes data **invisible**. 
-* **The Lock:** The secret message is likely embedded within the pixel data itself, protected by a passphrase.
-* **The Strategy:** We need a tool capable of parsing the image structure to extract the payload.
-* **The Warning:** The hidden file inside the image contains **multiple flag candidates**. Verify which one is the real flag.
+* **The Concept:** **Base64** is an encoding scheme, *not* encryption. It translates binary data into a set of 64 readable characters (A-Z, a-z, 0-9, +, /). It is commonly used to send files over text channels like email. 
+* **The Lock:** The text is readable but unintelligible. It usually ends with one or two equals signs (`=`) which act as padding.
+* **The Strategy:** We need to reverse the encoding process to restore the original text.
+* **The Warning:** The decoded message lists **multiple flag candidates**. You must identify which one is the real flag.
 
 ## 📝 Investigator’s Journal
 *Notes from the field:*
 
-> "CryptKeepers operatives are sloppy with their passwords. They often leave hints inside the file's **metadata** (comments, authors, etc.) because they can't remember them.
->
-> I tried running `strings` on it first, but I just got binary garbage. I have a hunch they used `steghide` to embed the message. The extraction will fail without the exact passphrase, so check the file headers before you start guessing blindly."
+> "The field agent scrambled this message before sending it. They assumed the receiver would know how to reverse the signal.
+> 
+> I recognized the encoding immediately—it uses a limited character set (A-Z, a-z, 0-9) and ends with an equals sign (`=`). This isn't high-grade military encryption; it's just obfuscation designed to slip past basic keyword filters. The standard Linux tools should handle this instantly."
 
 ## 📂 Files in This Folder
-* `squirrel.jpg` — The suspicious image file.
+* `encoded.txt`: The Base64-encoded transmission.
 
 ---
 
-## 🛠 Tools & Techniques
+## 🛠️ Tools & Techniques
 
-To solve this manually, you will need to use Linux terminal tools. Here are the standard methods for analyzing suspicious images:
+Use the pre-installed terminal tools to reverse the encoding process and recover the transmission data:
 
 | Tool | Purpose | Usage Example |
 | :--- | :--- | :--- |
-| **steghide** | The industry standard for JPG steganography. It requires a password to extract data. | `steghide extract -sf squirrel.jpg` |
-| **strings** | Scans the file for readable text. Useful if the flag is not encrypted, just embedded. | `strings squirrel.jpg` |
-| **exiftool** | Views metadata (Camera model, timestamps, comments). | `exiftool squirrel.jpg` |
-| **binwalk** | Checks if other files (like a ZIP) are glued to the end of the image. | `binwalk -e squirrel.jpg` |
+| **cat** | View the file contents first to confirm it looks like Base64. | `cat encoded.txt` |
+| **base64** | The standard utility for encoding/decoding. | `base64 --decode encoded.txt` |
+| **Pipe (`\|`)** | Send the file content directly from one utility into the decoder. | `cat encoded.txt \| base64 -d` |
 
-> 💡 **Tip:** If you don't know the passphrase, do not guess randomly. Use `exiftool` to inspect the image's tags for a clue.
+> 💡 **Tip:** If the output looks like a mess of symbols *after* decoding, you might be decoding a binary file (like an image) instead of text. But in this case, we expect text. 
 
 ---
 
 ## 🏁 Flag Format
 **`CCRI-AAAA-1111`**
 
-Once you extract the hidden text file, read its contents to find the flag.
+Decode the file, ignore the decoys, and identify the valid flag.

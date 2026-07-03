@@ -2,13 +2,16 @@
 import sys
 import os
 import time
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
 
-# === THE EPHEMERAL TOOL CODE ===
-TOOL_NAME = "decoder.py"
+# === CONFIGURATION & TOOL DATA ===
+TOOL_PATH = Path("decoder.py")
+FLAG_PATH = Path("flag.txt")
+
 SOLVER_SCRIPT_CONTENT = r"""#!/usr/bin/env python3
 import sys
 
@@ -41,24 +44,17 @@ except Exception as e:
 """
 
 def create_tool():
-    """Writes the solver to the CURRENT working directory."""
-    with open(TOOL_NAME, "w") as f:
-        f.write(SOLVER_SCRIPT_CONTENT)
-    # Make it executable for good measure
-    os.chmod(TOOL_NAME, 0o755)
+    """Writes the ephemeral decoding tool to the current working directory."""
+    TOOL_PATH.write_text(SOLVER_SCRIPT_CONTENT, encoding="utf-8")
+    TOOL_PATH.chmod(0o755)
 
 def cleanup_tool():
-    """Removes the solver to keep the directory clean."""
-    if os.path.exists(TOOL_NAME):
-        os.remove(TOOL_NAME)
-    if os.path.exists("flag.txt"):
-        try:
-            os.remove("flag.txt")
-        except:
-            pass
+    """Removes the ephemeral solver script and flag tracking targets safely."""
+    TOOL_PATH.unlink(missing_ok=True)
+    FLAG_PATH.unlink(missing_ok=True)
 
 def main():
-    # Ensure clean state
+    # Ensure clean state before launching context
     cleanup_tool()
     
     bot = Coach("Vigenère Cipher Breaker")
@@ -73,11 +69,10 @@ def main():
             command_to_display="cd challenges/04_Vigenere"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/04_Vigenere"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/04_Vigenere")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -95,7 +90,6 @@ def main():
         )
 
         # STEP 4: Tool Provisioning
-        # The Coach explicitly provides the tool here, filling the gap in the generic README.
         print("\n[Coach] 🛠️  The README notes that you need a tool for this.")
         print("[Coach] 📡  I am generating a Python script named 'decoder.py' for you now...")
         create_tool()
@@ -109,34 +103,30 @@ def main():
             command_to_display="ls -l"
         )
 
-        # === NEW STEP: Code Inspection ===
+        # STEP 5: Code Inspection
         bot.teach_step(
             instruction=(
-                "**Always inspect unknown scripts before running them.**\n"
+                "Always inspect unknown scripts before running them.\n"
                 "Read the script to see how it shifts the letters back based on the key."
             ),
             command_to_display="cat decoder.py"
         )
 
-        # STEP 5: Execution (Intel Merged Here)
+        # STEP 6: Execution
         bot.teach_loop(
             instruction=(
-                "Vigenère requires a **Key**.\n"
-                "The **Mission Brief** asks: *'What is the opposite of logout?'* -> **login**.\n\n"
+                "Vigenère requires a Key.\n"
+                "The Mission Brief asks: 'What is the opposite of logout?' -> login.\n\n"
                 "Run the decoder using that key and redirect `>` the output to `flag.txt`.\n"
                 "Syntax: `python3 decoder.py cipher.txt [KEY] > flag.txt`"
             ),
-            # Template showing the args
             command_template="python3 decoder.py cipher.txt login > flag.txt",
-            
-            # Validation
             command_prefix="python3 decoder.py",
             command_regex=r"^python3 decoder\.py cipher\.txt login > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 
-        # STEP 6: Verification
+        # STEP 7: Verification
         bot.teach_step(
             instruction=(
                 "Success! The tool decrypted the data.\n"
@@ -150,9 +140,8 @@ def main():
     except KeyboardInterrupt:
         bot.finish()
     finally:
-        # Cleanup acts as a "Secure Deletion" simulation
-        if os.path.exists(TOOL_NAME):
-            os.remove(TOOL_NAME)
+        # Final runtime cleanup cycle
+        cleanup_tool()
 
 if __name__ == "__main__":
     main()

@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-import os
-import sys
 import subprocess
-import time
+import sys
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen
 
 # === Config ===
@@ -13,16 +12,14 @@ SEARCH_DIR = "junk"
 OUTPUT_FILE = "flag.txt"
 KEYWORD = "CCRI"
 
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
-
 def main():
     # 1. Setup
     resize_terminal(35, 90)
-    search_path = get_path(SEARCH_DIR)
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    search_path = script_dir / SEARCH_DIR
+    output_path = script_dir / OUTPUT_FILE
 
-    if not os.path.isdir(search_path):
+    if not search_path.is_dir():
         print_error(f"Directory '{SEARCH_DIR}' not found.")
         sys.exit(1)
 
@@ -33,7 +30,6 @@ def main():
     print(f"🔧 Tool in use: {Colors.BOLD}grep -r{Colors.END}\n")
     print("🎯 Goal: Locate the hidden flag inside a maze of subdirectories.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Environment:** A complex folder structure with many decoys.")
     print("   ➤ **The Camouflage:** The flag might be in a 'hidden' file (starts with `.`).")
@@ -63,9 +59,9 @@ def main():
     spinner("Scanning directories")
 
     try:
-        # Run grep -r
+        # Run grep -r passing stringified Path
         result = subprocess.run(
-            ["grep", "-r", KEYWORD, search_path],
+            ["grep", "-r", KEYWORD, str(search_path)],
             capture_output=True,
             text=True
         )
@@ -78,36 +74,39 @@ def main():
         print_success("Match found!")
         print("-" * 50)
         
-        # Clean up output for display (relative paths)
         lines = result.stdout.strip().splitlines()
-        found_file = None
+        found_file_path = None
         
         for line in lines:
             # grep output format is usually "filename:match_text"
             if ":" in line:
                 file_part, text_part = line.split(":", 1)
-                rel_path = os.path.relpath(file_part, os.path.dirname(search_path))
+                file_path_obj = Path(file_part).resolve()
                 
-                # Highlight the file path and the match
+                try:
+                    rel_path = file_path_obj.relative_to(search_path.parent)
+                except ValueError:
+                    rel_path = file_path_obj
+                
                 print(f"📄 File: {Colors.BOLD}{rel_path}{Colors.END}")
                 print(f"📝 Content: {Colors.YELLOW}{text_part.strip()}{Colors.END}")
-                found_file = file_part # Save absolute path for extraction
+                found_file_path = file_path_obj 
         
         print("-" * 50 + "\n")
         
         # 6. Extraction
-        if found_file:
+        if found_file_path:
             print(f"{Colors.CYAN}🧠 We found the location! Now let's capture it.{Colors.END}")
             require_input(f"Type 'cat' to read and save the file: ", "cat")
             
-            with open(found_file, "r") as f:
-                content = f.read()
-            
-            with open(output_path, "w") as f_out:
-                f_out.write(content)
+            try:
+                content = found_file_path.read_text(encoding="utf-8", errors="replace")
+                output_path.write_text(content, encoding="utf-8")
                 
-            print(f"\n✅ Content saved to: {Colors.BOLD}{OUTPUT_FILE}{Colors.END}")
-            print(f"   Flag Format: CCRI-AAAA-1111\n")
+                print(f"\n✅ Content saved to: {Colors.BOLD}{OUTPUT_FILE}{Colors.END}")
+                print(f"   Flag Format: CCRI-AAAA-1111\n")
+            except Exception as e:
+                print_error(f"Failed to process or save file payload: {e}")
 
     else:
         print_error(f"No matches found for '{KEYWORD}'.")

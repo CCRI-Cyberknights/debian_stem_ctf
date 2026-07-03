@@ -1,35 +1,30 @@
 #!/usr/bin/env python3
-import os
 import subprocess
 import sys
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, safe_input
 
 # === Config ===
 IMAGE_FILE = "squirrel.jpg"
 OUTPUT_FILE = "decoded_message.txt"
 
-# === Utilities ===
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
-
-def run_steghide(password, image_path, output_path):
+def run_steghide(password, image_path: Path, output_path: Path) -> bool:
     """Attempt to extract hidden file using steghide and given password."""
     try:
         result = subprocess.run(
-            ["steghide", "extract", "-sf", image_path, "-xf", output_path, "-p", password, "-f"],
+            ["steghide", "extract", "-sf", str(image_path), "-xf", str(output_path), "-p", password, "-f"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        # Check if file exists and has content
-        return result.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 0
+        # Verify file state using Pathlib traits natively
+        return result.returncode == 0 and output_path.is_file() and output_path.stat().st_size > 0
     except FileNotFoundError:
-        print_error("steghide is not installed.")
+        print_error("steghide is not installed on this system.")
         return False
 
-# === Main Interactive Loop ===
 def main():
     # 1. Title Screen
     header("🕵️ Stego Decode Helper")
@@ -37,7 +32,6 @@ def main():
     print(f"🎯 Target: {Colors.BOLD}{IMAGE_FILE}{Colors.END}")
     print(f"🔍 Tool: {Colors.BOLD}steghide{Colors.END}\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ The target file is locked with a passphrase.")
     print("   ➤ Rumor has it the user used the \"most common password in the world.\"")
@@ -58,12 +52,14 @@ def main():
     
     require_input("Type 'go' when you are ready to guess the password: ", "go")
 
-    image_path = get_path(IMAGE_FILE)
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    image_path = script_dir / IMAGE_FILE
+    output_path = script_dir / OUTPUT_FILE
 
     # 3. Main Logic Loop
     while True:
-        pw = input(f"{Colors.YELLOW}🔑 Enter a password guess (or 'exit'): {Colors.END}").strip()
+        # Utilize unified safe_input to absorb manual abort shortcuts
+        pw = safe_input(f"{Colors.YELLOW}🔑 Enter a password guess (or 'exit'): {Colors.END}").strip()
         
         if not pw:
             continue
@@ -81,8 +77,11 @@ def main():
             print_success("ACCESS GRANTED! Message recovered:")
             print("=" * 50)
             print("--------------- CONTENT ---------------")
-            with open(output_path, "r", errors="replace") as f:
-                print(f"{Colors.BOLD}{f.read().strip()}{Colors.END}")
+            try:
+                content = output_path.read_text(encoding="utf-8", errors="replace").strip()
+                print(f"{Colors.BOLD}{content}{Colors.END}")
+            except Exception as e:
+                print_error(f"Failed to read recovered text file: {e}")
             print("---------------------------------------\n")
             print(f"📁 Evidence saved to: {Colors.BOLD}{OUTPUT_FILE}{Colors.END}")
             print(f"{Colors.CYAN}🧠 Look for the flag format: CCRI-AAAA-1111{Colors.END}")
@@ -91,13 +90,5 @@ def main():
         else:
             print_error("Access Denied. That password was incorrect.")
             print("💡 Hint: Search Google for 'most common passwords'.\n")
-            # Cleanup failed attempt artifacts
-            if os.path.exists(output_path):
-                try:
-                    os.remove(output_path)
-                except:
-                    pass
-
-# === Entry Point ===
-if __name__ == "__main__":
-    main()
+            # Clear invalid extraction artifacts safely via standard unlink rules
+            output_path.unlink(missing_ok=True)

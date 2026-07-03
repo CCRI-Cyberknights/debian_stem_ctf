@@ -2,33 +2,39 @@
 import sys
 import os
 import subprocess
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
 
-# === THE EPHEMERAL ASSEMBLER TOOL ===
-TOOL_NAME = ".assembler.py"
+# === CONFIGURATION & TARGET PATHS ===
+TOOL_PATH = Path(".assembler.py")
+POTFILE_PATH = Path("hashcat.potfile")
+HASHES_PATH = Path("hashes.txt")
+FLAG_PATH = Path("flag.txt")
+
 ASSEMBLER_SCRIPT_CONTENT = r"""#!/usr/bin/env python3
-import os
-import subprocess
 import sys
+import subprocess
+from pathlib import Path
 
 def main():
     parts = ["encoded_segments1.txt", "encoded_segments2.txt", "encoded_segments3.txt"]
     decoded_lines = []
 
-    # 1. Decode each file
+    # 1. Decode each file using modern Pathlib validation checks
     for p in parts:
-        if not os.path.exists(p):
+        part_path = Path(p)
+        if not part_path.is_file():
             print(f"ERROR: Could not find '{p}'. Did you unzip the segments?", file=sys.stderr)
             sys.exit(1)
         
-        # Decode using base64 command
-        res = subprocess.run(["base64", "-d", p], capture_output=True, text=True)
+        # Decode using system base64 processing pipeline
+        res = subprocess.run(["base64", "-d", str(part_path)], capture_output=True, text=True)
         decoded_lines.append(res.stdout.splitlines())
 
-    # 2. Merge (Zip) them together
+    # 2. Merge (Zip) segment lines together systematically
     print("--- REASSEMBLED FLAGS ---")
     
     if decoded_lines:
@@ -47,49 +53,45 @@ if __name__ == "__main__":
 """
 
 def create_tool():
-    """Writes the assembler script to the CURRENT working directory."""
-    with open(TOOL_NAME, "w") as f:
-        f.write(ASSEMBLER_SCRIPT_CONTENT)
+    """Writes the data fragment assembler tool to the current working directory."""
+    TOOL_PATH.write_text(ASSEMBLER_SCRIPT_CONTENT, encoding="utf-8")
+    TOOL_PATH.chmod(0o755)
 
 def cleanup_tool():
-    """Removes the assembler script and temp files."""
-    if os.path.exists(TOOL_NAME):
-        os.remove(TOOL_NAME)
-    if os.path.exists("hashcat.potfile"):
-        os.remove("hashcat.potfile")
-    # Optional: cleanup the unzipped parts if you want a fresh start
+    """Removes ephemeral processing scripts, hashes databases, and segment extractions."""
+    TOOL_PATH.unlink(missing_ok=True)
+    POTFILE_PATH.unlink(missing_ok=True)
+    FLAG_PATH.unlink(missing_ok=True)
+    
+    # Safely clear out any residual segment text file extractions
     for i in range(1, 4):
-        if os.path.exists(f"encoded_segments{i}.txt"):
-            os.remove(f"encoded_segments{i}.txt")
-    if os.path.exists("flag.txt"):
-        os.remove("flag.txt")
+        Path(f"encoded_segments{i}.txt").unlink(missing_ok=True)
 
 def get_ordered_passwords():
     """
     Reads hashcat.potfile to map hashes to passwords, ensuring we return them
-    in the order requested by hashes.txt (which matches part1, part2, part3).
+    in the precise order matching the hashes.txt input manifest sequence.
     """
-    potfile = "hashcat.potfile"
-    hashes_file = "hashes.txt"
     passwords = []
-    
-    # Map Hash -> Password
     cracked = {}
-    if os.path.exists(potfile):
-        with open(potfile, "r") as f:
+    
+    # Map Hash String -> Plaintext Password
+    if POTFILE_PATH.is_file():
+        with POTFILE_PATH.open("r", encoding="utf-8", errors="ignore") as f:
             for line in f:
                 if ":" in line:
                     h, p = line.strip().split(":", 1)
                     cracked[h] = p
     
-    # Retrieve in strict input order
-    if os.path.exists(hashes_file):
-        with open(hashes_file, "r") as f:
+    # Retrieve plaintext keys matching active execution sequencing
+    if HASHES_PATH.is_file():
+        with HASHES_PATH.open("r", encoding="utf-8") as f:
             for line in f:
                 h = line.strip()
-                passwords.append(cracked.get(h, "unknown"))
+                if h:
+                    passwords.append(cracked.get(h, "unknown"))
     
-    # Safety padding
+    # Structural padding array loop guard
     while len(passwords) < 3:
         passwords.append("unknown")
         
@@ -98,7 +100,7 @@ def get_ordered_passwords():
 def main():
     bot = Coach("Hashcat ChainCrack")
     
-    # Ensure clean slate
+    # Ensure clean slate before initialization
     cleanup_tool()
     
     bot.start()
@@ -112,11 +114,10 @@ def main():
             command_to_display="cd challenges/06_Hashcat"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/06_Hashcat"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/06_Hashcat")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -143,20 +144,18 @@ def main():
         bot.teach_step(
             instruction=(
                 "The passwords are saved in the potfile. Now we reveal them using `--show`.\n"
-                "💡 **Tip:** Press **Up Arrow** to recall the command, then add ` --show`."
+                "💡 Tip: Press **Up Arrow** to recall the command, then add ` --show`."
             ),
             command_to_display="hashcat -m 0 -a 0 hashes.txt wordlist.txt --potfile-path hashcat.potfile --show"
         )
 
         # === READ LOCAL RESULTS ===
-        # The coach needs to know the passwords to validate the unzipping
         p1, p2, p3 = get_ordered_passwords()[:3]
-        # ==========================
 
         # STEP 5: Unlock Part 1
         bot.teach_loop(
             instruction=(
-                "**Crucial Lesson:** Hashcat's `--show` output matches the input order.\n"
+                "Hashcat's `--show` output matches the input order.\n"
                 "1. The **first line** matches the **first zip** (part1).\n"
                 f"2. That password is **{p1}**.\n\n"
                 "Use it to unzip Part 1:"
@@ -193,16 +192,16 @@ def main():
             clean_files=["encoded_segments3.txt"]
         )
 
-        # STEP 8: Tool Provisioning (The Logic Fix)
+        # STEP 8: Tool Provisioning
         print("\n[Coach] 🧠  The Mission Brief says we need to 'Assemble' the data.")
-        print("[Coach] ⚠️   We have three separate files. Combining them by hand is slow.")
+        print("[Coach] ⚠️  We have three separate files. Combining them by hand is slow.")
         print("[Coach] 📡  I am generating a helper script `.assembler.py` for you now...")
         create_tool()
 
         bot.teach_step(
             instruction=(
                 "I have created `.assembler.py`.\n"
-                "**Always inspect code before running it.** Read the script now."
+                "Always inspect code before running it. Read the script now."
             ),
             command_to_display="cat .assembler.py"
         )

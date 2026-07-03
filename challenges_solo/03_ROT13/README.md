@@ -14,22 +14,22 @@ It looks human-readable… just twisted. The letters seem familiar, but the word
 *Notes from the field:*
 
 > "They really used that childish cipher again? It's not even encryption; it's just obfuscation.
->
+> 
 > It looks like they tried to hide a flag in there, but ROT13 leaves numbers and symbols unchanged. If you see something like `PPEV-nnnn-1111`, that's likely the flag staring right at you, just shifted."
 
 ## 📂 Files in This Folder
-* `cipher.txt` — The scrambled transmission.
+* `cipher.txt`: The scrambled transmission.
 
 ---
 
-## 🛠 Tools & Techniques
+## 🛠️ Tools & Techniques
 
-While there are many online converters, a true Linux pro uses the terminal.
+While there are many online converters, a true Linux pro uses the terminal. Use the pre-installed tools to translate the text character mappings:
 
 | Tool | Purpose | Usage Example |
 | :--- | :--- | :--- |
-| **tr** | The "translate" command is perfect for swapping character sets. | `tr 'A-Za-z' 'N-ZA-Mn-za-m' < cipher.txt` |
-| **Python** | Python has a built-in library for this specific cipher. | `python3 -c "import codecs; print(codecs.decode(open('cipher.txt').read(), 'rot_13'))"` |
+| **tr** | The translate utility is perfect for shifting character sets. | `tr 'A-Za-z' 'N-ZA-Mn-za-m' < cipher.txt` |
+| **Python** | Python has a built-in library codec configuration for this specific cipher. | `python3 -c "import codecs; print(codecs.decode(open('cipher.txt').read(), 'rot_13'))"` |
 
 > 💡 **Tip:** The `tr` command looks scary, but it's just a mapping:
 > * `A-Za-z` = The alphabet inputs.

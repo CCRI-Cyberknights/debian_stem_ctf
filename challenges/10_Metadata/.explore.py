@@ -1,39 +1,34 @@
 #!/usr/bin/env python3
-import os
-import sys
 import subprocess
+import sys
 import time
-import random
 import re
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen, safe_input
 
 # === Config ===
 IMAGE_FILE = "capybara.jpg"
 OUTPUT_FILE = "metadata_dump.txt"
 
-def get_path(filename):
-    """Ensure the file is saved next to this script, regardless of where it's run from."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-
-def extract_flag_candidates(text):
-    """Extract and display a few plausible flag-like values from metadata."""
+def extract_flag_candidates(text: str) -> list:
+    """Extract and display unique plausible flag-like values from metadata text streams."""
     pattern = r"CCRI-[A-Z0-9]{4}-[0-9]{4}"
     matches = re.findall(pattern, text)
-    return list(set(matches)) # Unique matches
+    return list(set(matches))
 
 def main():
     # 1. Setup
     resize_terminal(35, 90)
     
-    script_dir = os.path.abspath(os.path.dirname(__file__))
-    target_image = get_path(IMAGE_FILE)
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    target_image = script_dir / IMAGE_FILE
+    output_path = script_dir / OUTPUT_FILE
 
-    if not os.path.isfile(target_image):
-        print_error(f"{IMAGE_FILE} not found in this folder!")
+    if not target_image.is_file():
+        print_error(f"{IMAGE_FILE} not discovered in the targeted workspace path context.")
         sys.exit(1)
 
     # 2. Mission Briefing
@@ -43,7 +38,6 @@ def main():
     print(f"🔧 Tool in use: {Colors.BOLD}exiftool{Colors.END}\n")
     print("🎯 Goal: Extract hidden metadata from the image to find the flag.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Lock:** Information is hidden in file headers (EXIF tags).")
     print("   ➤ **The Strategy:** Metadata Extraction (reading data about data).")
@@ -71,30 +65,32 @@ def main():
     spinner("Extracting metadata")
 
     try:
-        with open(output_path, "w", encoding="utf-8", errors="replace") as out_f:
+        with output_path.open("w", encoding="utf-8", errors="replace") as out_f:
             subprocess.run(
-                ["exiftool", target_image],
+                ["exiftool", str(target_image)],
                 stdout=out_f,
                 stderr=subprocess.DEVNULL,
                 check=True
             )
     except subprocess.CalledProcessError:
-        print_error("exiftool failed to run.")
+        print_error("exiftool runtime instance execution dropped with non-zero exit state.")
         sys.exit(1)
     except FileNotFoundError:
-        print_error("exiftool command not found. Is it installed?")
+        print_error("exiftool utility binary context was not located on the host profile server.")
         sys.exit(1)
 
-    print_success(f"Metadata extraction complete.\n")
+    print_success("Metadata extraction complete.\n")
 
     # 5. Preview & Filter
     print("👀 Let’s preview the first few lines of the dump:")
     print("-" * 50)
-    with open(output_path, "r", encoding="utf-8", errors="replace") as f:
-        metadata_text = f.read()
+    try:
+        metadata_text = output_path.read_text(encoding="utf-8", errors="replace")
         lines = metadata_text.splitlines()
-        for line in lines[:10]: # Show first 10
+        for line in lines[:10]:
             print(f"{Colors.YELLOW}{line}{Colors.END}")
+    except Exception as e:
+        print_error(f"Failed to scan metadata extraction dump: {e}")
     print("-" * 50 + "\n")
 
     require_input("Type 'filter' to search for the flag: ", "filter")
@@ -118,7 +114,7 @@ def main():
         print(f"📁 Evidence saved to: {Colors.BOLD}{OUTPUT_FILE}{Colors.END}")
         print(f"{Colors.CYAN}🧠 This metadata field was hidden inside the file header.{Colors.END}\n")
     else:
-        print_error("No flag format found in metadata.")
+        print_error("No flag format found in metadata fields.")
         print_info("Try inspecting the file manually or looking for other keywords.")
 
     pause("Press ENTER to close this terminal...")

@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
-import os
 import sys
 import subprocess
 import time
 import socket
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, print_success, print_error, print_info, resize_terminal, clear_screen, spinner
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, print_success, print_error, print_info, resize_terminal, clear_screen, spinner, safe_input
 
 # === Config ===
 BINARY_PORT_RANGE = "8000-8100"
 BINARY_HOST = "localhost"
 BINARY_URL = f"http://{BINARY_HOST}"
 SAVE_FILENAME = "nmap_flag_response.txt"
-
-def get_path(filename):
-    """Ensure the file is saved next to this script, regardless of where it's run from."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
 
 def check_web_server():
     """Checks if the CTF web server is running on port 5000."""
@@ -37,7 +33,8 @@ def check_web_server():
         pass
 
 # === Nmap Scan ===
-def run_nmap_scan():
+def run_nmap_scan() -> str:
+    """Executes nmap utility against host ranges."""
     try:
         result = subprocess.run(
             ["nmap", "-sV", "--version-light", f"-p{BINARY_PORT_RANGE}", BINARY_HOST],
@@ -50,7 +47,8 @@ def run_nmap_scan():
         print_error("`nmap` is not installed.")
         sys.exit(1)
 
-def extract_open_ports(scan_output):
+def extract_open_ports(scan_output: str) -> list:
+    """Parses open tcp listener ports from scan output streams."""
     ports = []
     for line in scan_output.splitlines():
         if "open" in line and "tcp" in line:
@@ -63,7 +61,8 @@ def extract_open_ports(scan_output):
     return ports
 
 # === Curl Requests ===
-def fetch_port_response(port):
+def fetch_port_response(port: str) -> str:
+    """Interrogates identified network interfaces via curl."""
     try:
         result = subprocess.run(
             ["curl", "-s", "--max-time", "2", f"{BINARY_URL}:{port}"],
@@ -83,7 +82,9 @@ def main():
     # 1. Setup
     resize_terminal(35, 90)
     check_web_server()
-    save_file_path = get_path(SAVE_FILENAME)
+    
+    script_dir = Path(__file__).resolve().parent
+    save_file_path = script_dir / SAVE_FILENAME
     
     # 2. Mission Briefing
     header("🛰️  Nmap Port Scanner")
@@ -92,7 +93,6 @@ def main():
     print(f"🔧 Tool in use: {Colors.BOLD}nmap{Colors.END} (Network Mapper)\n")
     print("🎯 Goal: Scan the network range, enumerate services, and find the flag.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Concept:** Hackers use Port Scanners to knock on every \"door\". ")
     print("   ➤ **The Tool:** `nmap` is the industry standard for network discovery. ")
@@ -107,7 +107,7 @@ def main():
     print(f"   {Colors.GREEN}nmap -sV -p {BINARY_PORT_RANGE} {BINARY_HOST}{Colors.END}\n")
     
     print("🔍 Command breakdown:")
-    print(f"   {Colors.BOLD}-sV{Colors.END}                  → Service Version detection (try to identify the software)")
+    print("   {Colors.BOLD}-sV{Colors.END}                  → Service Version detection (try to identify the software)")
     print(f"   {Colors.BOLD}-p {BINARY_PORT_RANGE}{Colors.END}    → Only scan this specific range (saves time)")
     print(f"   {Colors.BOLD}{BINARY_HOST}{Colors.END}           → The target IP/Hostname\n")
     
@@ -146,10 +146,10 @@ def main():
         print(f"\n{len(open_ports)+1:2d}. 🚪 Exit Scanner")
 
         try:
-            choice_str = input(f"\n{Colors.YELLOW}🔍 Select a port to investigate (1-{len(open_ports)+1}): {Colors.END}").strip()
+            choice_str = safe_input(f"\n{Colors.YELLOW}🔍 Select a port to investigate (1-{len(open_ports)+1}): {Colors.END}").strip()
             choice = int(choice_str)
         except ValueError:
-            print_error("Invalid input.")
+            print_error("Invalid input specification entry.")
             time.sleep(1)
             continue
 
@@ -177,10 +177,10 @@ def main():
 
             # Save option
             while True:
-                save_opt = input(f"\n💾 Save this evidence? (y/n): ").strip().lower()
+                save_opt = safe_input(f"\n💾 Save this evidence? (y/n): ").strip().lower()
                 if save_opt == 'y':
                     try:
-                        with open(save_file_path, "a", encoding="utf-8") as f:
+                        with save_file_path.open("a", encoding="utf-8") as f:
                             f.write(f"--- Port {port} ---\n{response}\n\n")
                         print_success(f"Saved to {SAVE_FILENAME}")
                     except Exception as e:
@@ -190,11 +190,11 @@ def main():
                 elif save_opt == 'n':
                     break
 
-        elif choice == len(open_ports)+1:
+        elif choice == len(open_ports) + 1:
             print(f"\n{Colors.CYAN}👋 Exiting scanner.{Colors.END}")
             break
         else:
-            print_error("Invalid selection.")
+            print_error("Invalid option choice range value.")
             time.sleep(1)
 
 if __name__ == "__main__":

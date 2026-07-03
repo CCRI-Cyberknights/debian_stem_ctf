@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen, safe_input
 
 # === Config ===
 ZIP_FILE = "secret.zip"
@@ -14,10 +14,8 @@ WORDLIST = "wordlist.txt"
 B64_FILE = "message_encoded.txt"
 OUTPUT_FILE = "decoded_output.txt"
 
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
-
 def progress_bar(length=30, delay=0.03):
+    """Renders a simple visual loading bar sequence."""
     for _ in range(length):
         sys.stdout.write("█")
         sys.stdout.flush()
@@ -28,14 +26,14 @@ def main():
     # 1. Setup
     resize_terminal(35, 90)
     
-    script_dir = os.path.abspath(os.path.dirname(__file__))
-    zip_path = get_path(ZIP_FILE)
-    wordlist_path = get_path(WORDLIST)
-    b64_path = get_path(B64_FILE)
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    zip_path = script_dir / ZIP_FILE
+    wordlist_path = script_dir / WORDLIST
+    b64_path = script_dir / B64_FILE
+    output_path = script_dir / OUTPUT_FILE
 
-    if not os.path.isfile(zip_path) or not os.path.isfile(wordlist_path):
-        print_error("Missing zip file or wordlist.")
+    if not zip_path.is_file() or not wordlist_path.is_file():
+        print_error("Missing zip file archiver target or verification wordlist configuration.")
         sys.exit(1)
 
     # 2. Mission Briefing
@@ -45,7 +43,6 @@ def main():
     print(f"📄 Password List:  {Colors.BOLD}{WORDLIST}{Colors.END}")
     print("🎯 Goal: Automate a dictionary attack to break the lock.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Lock:** Standard ZIP encryption.")
     print("   ➤ **The Strategy:** Dictionary Attack.")
@@ -81,38 +78,43 @@ def main():
     found = False
     password = None
 
-    with open(wordlist_path, "r", encoding="utf-8", errors="replace") as f:
-        for line in f:
-            pw = line.strip()
-            if not pw: continue
-            
-            # Simulated cracking output - Overwrite line for speed effect
-            print(f"\r[🔐] Testing: {Colors.YELLOW}{pw:<20}{Colors.END}", end="", flush=True)
-            time.sleep(0.01) # Slightly faster to look cool
+    try:
+        with open(wordlist_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                pw = line.strip()
+                if not pw: 
+                    continue
+                
+                # Overwrite line dynamically for real-time tracking visualization
+                print(f"\r[🔐] Testing: {Colors.YELLOW}{pw:<20}{Colors.END}", end="", flush=True)
+                time.sleep(0.01)
 
-            # The actual check
-            result = subprocess.run(
-                ["unzip", "-P", pw, "-t", zip_path],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
+                # Execute integrity test validation checks
+                result = subprocess.run(
+                    ["unzip", "-P", pw, "-t", str(zip_path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
 
-            if "OK" in result.stdout:
-                print(f"\n\n{Colors.GREEN}✅ MATCH FOUND: {Colors.BOLD}{pw}{Colors.END}")
-                password = pw
-                found = True
-                break
+                if "OK" in result.stdout:
+                    print(f"\n\n{Colors.GREEN}✅ MATCH FOUND: {Colors.BOLD}{pw}{Colors.END}")
+                    password = pw
+                    found = True
+                    break
+    except Exception as e:
+        print_error(f"Error encountered during cracking session execution: {e}")
+        sys.exit(1)
 
     if not found:
         print("\n")
-        print_error("Password not found in wordlist.")
+        print_error("Password not found inside configured wordlist asset storage.")
         pause("Press ENTER to close this terminal...")
         sys.exit(1)
 
     # 5. Extraction Phase
     while True:
-        proceed = input(f"\n{Colors.YELLOW}📦 Extract and decode the message now? (yes/no): {Colors.END}").strip().lower()
+        proceed = safe_input(f"\n{Colors.YELLOW}📦 Extract and decode the message now? (yes/no): {Colors.END}").strip().lower()
         if proceed == "yes":
             break
         elif proceed == "no":
@@ -125,24 +127,30 @@ def main():
     print("\n📦 Extracting archive contents...\n")
     spinner("Extracting files")
 
-    subprocess.run(["unzip", "-o", "-P", password, zip_path, "-d", script_dir],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        ["unzip", "-o", "-P", password, str(zip_path), "-d", str(script_dir)],
+        stdout=subprocess.DEVNULL, 
+        stderr=subprocess.DEVNULL
+    )
 
-    if not os.path.isfile(b64_path):
-        print_error("Extraction failed — missing Base64 message.")
+    if not b64_path.is_file():
+        print_error("Extraction failed: missing Base64 payload storage reference target.")
         pause("Press ENTER to close this terminal...")
         sys.exit(1)
 
     clear_screen()
     print(f"📄 Extracted Base64 Message ({B64_FILE}):")
     print("-" * 50)
-    with open(b64_path, "r", encoding="utf-8", errors="replace") as f:
-        print(f"{Colors.YELLOW}{f.read()}{Colors.END}")
+    try:
+        b64_content = b64_path.read_text(encoding="utf-8", errors="replace")
+        print(f"{Colors.YELLOW}{b64_content}{Colors.END}")
+    except Exception as e:
+        print_error(f"Failed to read payload extraction output: {e}")
     print("-" * 50 + "\n")
 
     # 6. Decoding Phase
     while True:
-        decode = input(f"{Colors.YELLOW}🔎 Decode the message now? (yes/no): {Colors.END}").strip().lower()
+        decode = safe_input(f"{Colors.YELLOW}🔎 Decode the message now? (yes/no): {Colors.END}").strip().lower()
         if decode == "yes":
             break
         elif decode == "no":
@@ -155,19 +163,23 @@ def main():
     print("\n⏳ Decoding message with Base64...\n")
     progress_bar(length=25, delay=0.03)
 
-    result = subprocess.run(["base64", "--decode", b64_path],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            text=True)
+    result = subprocess.run(
+        ["base64", "--decode", str(b64_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
 
     if result.returncode != 0:
-        print_error("Decoding failed.")
+        print_error("Base64 stream translation processing failed.")
         pause("Press ENTER to close this terminal...")
         sys.exit(1)
 
     decoded = result.stdout.strip()
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(decoded + "\n")
+    try:
+        output_path.write_text(decoded + "\n", encoding="utf-8")
+    except Exception as e:
+        print_error(f"Failed to commit cleartext flag matrix onto disk tracking arrays: {e}")
 
     # 7. Final Success
     print(f"\n{Colors.GREEN}🧾 Decoded Message:{Colors.END}")

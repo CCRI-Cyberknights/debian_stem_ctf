@@ -1,11 +1,11 @@
-#!/usr/bin/env python3
-import os
-import subprocess
+#!/usr/bin/env encoding="utf-8"
 import sys
-import glob
+import subprocess
+import shutil
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen
 
 # === Config ===
@@ -13,14 +13,11 @@ QR_PATTERN = "qr_*.png"
 OUTPUT_FILE = "scan_results.txt"
 FLAG_PREFIX = "CCRI-"
 
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
-
 def main():
     # 1. Setup
     resize_terminal(35, 90)
-    script_dir = os.path.abspath(os.path.dirname(__file__))
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    output_path = script_dir / OUTPUT_FILE
 
     # 2. Mission Briefing
     header("📱 Bulk QR Scanner")
@@ -29,7 +26,6 @@ def main():
     print(f"🔧 Tool in use: {Colors.BOLD}zbarimg{Colors.END}\n")
     print("🎯 Goal: Scan multiple QR codes instantly to find the one containing the flag.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Lock:** Data encoded in 2D barcodes.")
     print("   ➤ **The Strategy:** Bulk Scanning (don't check them one by one).")
@@ -46,7 +42,7 @@ def main():
     print(f"   {Colors.GREEN}zbarimg {QR_PATTERN} > {OUTPUT_FILE}{Colors.END}\n")
     
     print("🔍 Command breakdown:")
-    print(f"   {Colors.BOLD}zbarimg{Colors.END}        → The barcode reader tool")
+    print(f"   {Colors.BOLD}zbarimg{Colors.END}         → The barcode reader tool")
     print(f"   {Colors.BOLD}{QR_PATTERN:<12}{Colors.END} → The '*' matches 'qr_01.png', 'qr_02.png', etc.")
     print(f"   {Colors.BOLD}> {OUTPUT_FILE}{Colors.END}   → Save all results to a single text file\n")
     
@@ -56,22 +52,22 @@ def main():
     print(f"\n⏳ Scanning all files matching '{QR_PATTERN}'...")
     spinner("Processing images")
 
-    # Check if zbarimg is installed
+    # Check if zbarimg is installed via standard ecosystem paths
     if shutil.which("zbarimg") is None:
         print_error("zbarimg is not installed. Please install 'zbar-tools'.")
         sys.exit(1)
 
-    # Run the command using glob to expand the wildcard manually for Python
-    files_to_scan = sorted(glob.glob(os.path.join(script_dir, QR_PATTERN)))
+    # Resolve active directory matching images via object-oriented glob sequences
+    files_to_scan = sorted(list(script_dir.glob(QR_PATTERN)))
     
     if not files_to_scan:
         print_error("No QR code images found.")
         sys.exit(1)
 
     try:
-        # We run zbarimg on the list of files
-        cmd = ["zbarimg"] + files_to_scan
-        with open(output_path, "w") as out_f:
+        # Stringify resolved path targets before execution pass
+        cmd = ["zbarimg"] + [str(f) for f in files_to_scan]
+        with output_path.open("w", encoding="utf-8") as out_f:
             subprocess.run(cmd, stdout=out_f, stderr=subprocess.DEVNULL)
             
         print_success("Bulk scan complete.\n")
@@ -89,12 +85,16 @@ def main():
     print(f"\n🔎 Searching results for flag format...\n")
     
     found_flags = []
-    with open(output_path, "r") as f:
-        for line in f:
+    try:
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        for line in lines:
             if FLAG_PREFIX in line:
                 # zbarimg output format is usually "QR-Code:TEXT"
                 clean_text = line.split(":", 1)[-1].strip()
                 found_flags.append(clean_text)
+    except Exception as e:
+        print_error(f"Failed to read scan results from disk: {e}")
+        sys.exit(1)
 
     if found_flags:
         print_success(f"Found {len(found_flags)} flag(s)!")
@@ -109,9 +109,6 @@ def main():
         print_info("Check if the images are valid QR codes.")
 
     pause("Press ENTER to close this terminal...")
-
-# Need shutil for checking tool existence
-import shutil
 
 if __name__ == "__main__":
     main()

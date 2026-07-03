@@ -1,32 +1,28 @@
 #!/usr/bin/env python3
-import os
 import subprocess
 import sys
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, safe_input
 
 # === Config ===
 INPUT_FILE = "encoded.txt"
 OUTPUT_FILE = "decoded_output.txt"
 
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
-
-def decode_base64(input_path, output_path):
+def decode_base64(input_path: Path, output_path: Path):
     """Decode a Base64-encoded file using the system tool and save the result."""
     try:
         result = subprocess.run(
-            ["base64", "--decode", input_path],
+            ["base64", "--decode", str(input_path)],
             capture_output=True,
             text=True,
             check=True
         )
         decoded = result.stdout.strip()
         if decoded:
-            with open(output_path, "w") as f:
-                f.write(decoded + "\n")
+            output_path.write_text(decoded + "\n", encoding="utf-8")
         return decoded
     except subprocess.CalledProcessError:
         return None
@@ -41,7 +37,6 @@ def main():
     print(f"📄 Target File: {Colors.BOLD}{INPUT_FILE}{Colors.END}")
     print("🎯 Goal: Decode the transmission to retrieve the flag.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ Base64 is NOT encryption; it is an encoding scheme.")
     print("   ➤ **The Signature:** Look for random text ending in `=` or `==`.")
@@ -51,8 +46,9 @@ def main():
 
     # 2. File Inspection
     header("🔍 Step 1: Verification")
-    input_path = get_path(INPUT_FILE)
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    input_path = script_dir / INPUT_FILE
+    output_path = script_dir / OUTPUT_FILE
     
     print(f"Let's check if the file matches the Base64 signature described in the intel.\n")
     spinner("Reading file")
@@ -61,9 +57,8 @@ def main():
     print(f"📄 Content of {INPUT_FILE}:")
     print("-" * 50)
     try:
-        with open(input_path, "r", errors="replace") as f:
-            content = f.read().strip()
-            print(f"{Colors.YELLOW}{content}{Colors.END}")
+        content = input_path.read_text(encoding="utf-8", errors="replace").strip()
+        print(f"{Colors.YELLOW}{content}{Colors.END}")
     except FileNotFoundError:
         print_error(f"{INPUT_FILE} not found!")
         pause()

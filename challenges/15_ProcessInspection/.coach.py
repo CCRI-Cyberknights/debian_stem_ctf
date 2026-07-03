@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
+
+def cleanup_artifacts():
+    """Removes lingering workspace tracking artifacts safely."""
+    Path("flag.txt").unlink(missing_ok=True)
 
 def main():
     bot = Coach("Process Hunter (grep)")
+    
+    # Ensure a fresh execution canvas
+    cleanup_artifacts()
+    
     bot.start()
 
     try:
@@ -19,11 +28,10 @@ def main():
             command_to_display="cd challenges/15_ProcessInspection"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/15_ProcessInspection"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/15_ProcessInspection")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: The Setup
         bot.teach_step(
@@ -54,15 +62,9 @@ def main():
                 "It acts as a filter, discarding the noise and showing ONLY the lines matching our pattern.\n\n"
                 "Use `grep` to search for 'CCRI' and **save the output** to 'flag.txt'."
             ),
-            # Template showing the search
             command_template="grep \"CCRI\" ps_dump.txt > flag.txt",
-            
-            # Prefix for validation
             command_prefix="grep \"CCRI\" ps_dump.txt",
-            
-            # Strict Regex
             command_regex=r"^grep \"CCRI\" ps_dump\.txt > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 
@@ -79,6 +81,8 @@ def main():
 
     except KeyboardInterrupt:
         bot.finish()
+    finally:
+        cleanup_artifacts()
 
 if __name__ == "__main__":
     main()

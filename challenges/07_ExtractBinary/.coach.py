@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
+
+def cleanup():
+    """Ensures a clean starting environment by purging any stale flags."""
+    Path("flag.txt").unlink(missing_ok=True)
 
 def main():
     bot = Coach("Binary Forensics (strings)")
+    
+    # Ensure clean slate before initialization
+    cleanup()
+    
     bot.start()
 
     try:
@@ -19,11 +28,10 @@ def main():
             command_to_display="cd challenges/07_ExtractBinary"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/07_ExtractBinary"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/07_ExtractBinary")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -64,12 +72,8 @@ def main():
                 "Construct the command:"
             ),
             command_template="strings hidden_flag | grep CCRI > flag.txt",
-            
             command_prefix="strings hidden_flag | grep ",
-            
-            # Enforce the pipeline structure. We explicitly look for 'CCRI'
             command_regex=r"^strings hidden_flag \| grep CCRI > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 

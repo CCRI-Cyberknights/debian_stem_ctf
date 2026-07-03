@@ -13,23 +13,23 @@ A recovered message from a compromised CryptKeepers field device appears to cont
 *Notes from the field:*
 
 > "The field agent scrambled this message before sending it. They assumed the receiver would know how to reverse the signal.
->
+> 
 > I recognized the encoding immediately—it uses a limited character set (A-Z, a-z, 0-9) and ends with an equals sign (`=`). This isn't high-grade military encryption; it's just obfuscation designed to slip past basic keyword filters. The standard Linux tools should handle this instantly."
 
 ## 📂 Files in This Folder
-* `encoded.txt` — The Base64-encoded transmission.
+* `encoded.txt`: The Base64-encoded transmission.
 
 ---
 
-## 🛠 Tools & Techniques
+## 🛠️ Tools & Techniques
 
-This is a standard encoding format, so most Linux systems have a built-in tool to handle it.
+Use the pre-installed terminal tools to reverse the encoding process and recover the transmission data:
 
 | Tool | Purpose | Usage Example |
 | :--- | :--- | :--- |
 | **cat** | View the file contents first to confirm it looks like Base64. | `cat encoded.txt` |
 | **base64** | The standard utility for encoding/decoding. | `base64 --decode encoded.txt` |
-| **Pipe (`|`)** | Advanced technique: Send the file content directly into the decoder. | `cat encoded.txt | base64 -d` |
+| **Pipe (`\|`)** | Send the file content directly from one utility into the decoder. | `cat encoded.txt \| base64 -d` |
 
 > 💡 **Tip:** If the output looks like a mess of symbols *after* decoding, you might be decoding a binary file (like an image) instead of text. But in this case, we expect text. 
 

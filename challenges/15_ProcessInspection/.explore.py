@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-import os
 import sys
 import subprocess
 import time
 import shlex
+import os  # Maintained strictly for environmental controls and process teardown
+from pathlib import Path
 
-# === Import Core ===
-# We need the full module to patch it
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import exploration_core 
-from exploration_core import Colors, header, pause, require_input, print_success, print_error, print_info, clear_screen
+from exploration_core import Colors, header, pause, require_input, print_success, print_error, print_info, clear_screen, safe_input
 
 # === THE FIX: Patch the module itself ===
 # This ensures that even if 'header()' calls resize_terminal internally,
@@ -33,17 +33,13 @@ exploration_core.resize_terminal = safe_resize
 DUMP_FILE = "ps_dump.txt"
 OUTPUT_FILE = "process_output.txt"
 
-def get_path(filename):
-    """Ensure the file is saved next to this script, regardless of where it's run from."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-
-def relaunch_in_bigger_terminal(script_path):
+def relaunch_in_bigger_terminal(script_path: Path):
     """Re-executes the script in a larger terminal window for visibility."""
     if os.environ.get("BIGGER_TERMINAL") == "1":
         return
 
     os.environ["BIGGER_TERMINAL"] = "1"
-    abs_script = os.path.abspath(script_path)
+    abs_script = script_path.resolve()
     print_info("Launching in a larger terminal window for better visibility...")
     time.sleep(1)
 
@@ -53,7 +49,7 @@ def relaunch_in_bigger_terminal(script_path):
             "mate-terminal",
             "--geometry=140x48", 
             "--", "bash", "-c",
-            f"printf '\\033[8;48;140t'; python3 '{abs_script}'; exec bash"
+            f"printf '\\033[8;48;140t'; python3 '{abs_script.as_posix()}'; exec bash"
         ])
         time.sleep(1)
         os._exit(0)
@@ -61,12 +57,14 @@ def relaunch_in_bigger_terminal(script_path):
         # Fallback: Just try to resize the current window and proceed
         safe_resize(48, 140)
 
-def load_process_map(ps_dump_path):
+def load_process_map(ps_dump_path: Path) -> dict:
     """Parses ps_dump.txt and returns a {binary: full_command} mapping."""
     proc_map = {}
+    if not ps_dump_path.is_file():
+        return {}
     try:
-        with open(ps_dump_path, "r", encoding="utf-8") as f:
-            next(f)  # Skip header
+        with ps_dump_path.open("r", encoding="utf-8", errors="ignore") as f:
+            next(f)  # Skip header row
             for line in f:
                 # ps aux columns: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
                 parts = line.strip().split(maxsplit=10)
@@ -80,20 +78,20 @@ def load_process_map(ps_dump_path):
 
                     if binary not in proc_map:
                         proc_map[binary] = full_cmd
-    except FileNotFoundError:
+    except Exception:
         return {}
     return proc_map
 
-def inspect_process(binary, ps_dump_path):
+def inspect_process(binary: str, ps_dump_path: Path) -> str:
     clear_screen()
     print(f"\n🔍 Inspecting process: {Colors.BOLD}{binary}{Colors.END}")
     print("-" * 50)
     time.sleep(0.5)
 
     try:
-        # Use grep to find the specific lines
+        # Use grep to find the specific tracking lines
         result = subprocess.run(
-            ["grep", binary, ps_dump_path],
+            ["grep", binary, str(ps_dump_path)],
             stdout=subprocess.PIPE,
             text=True
         )
@@ -109,26 +107,26 @@ def inspect_process(binary, ps_dump_path):
         print_error(f"Error inspecting process: {e}")
     return ""
 
-def save_output(text, path):
+def save_output(text: str, path: Path):
     try:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(text)
-        print_success(f"Output saved to {os.path.basename(path)}")
+        path.write_text(text, encoding="utf-8")
+        print_success(f"Output saved to {path.name}")
     except Exception as e:
-        print_error(f"Failed to save output: {e}")
+        print_error(f"Failed to save output target stream: {e}")
 
 def main():
-    # 1. Relaunch Check
-    relaunch_in_bigger_terminal(__file__)
+    # 1. Setup paths via Object Model
+    script_path = Path(__file__).resolve()
+    script_dir = script_path.parent
+    ps_dump_path = script_dir / DUMP_FILE
+    output_path = script_dir / OUTPUT_FILE
 
-    # 2. Resize
+    # 2. Relaunch Check
+    relaunch_in_bigger_terminal(script_path)
+
+    # 3. Resize window environment context
     time.sleep(0.2)
     safe_resize() 
-
-    # 3. Setup
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    ps_dump_path = get_path(DUMP_FILE)
-    output_path = get_path(OUTPUT_FILE)
     
     # 4. Mission Briefing
     header("🖥️  Process Inspection")
@@ -137,7 +135,6 @@ def main():
     print(f"🔧 Strategy: {Colors.BOLD}Process Auditing{Colors.END}\n")
     print("🎯 Goal: Identify the rogue process carrying the flag in its options.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Concept:** Every program is a process.")
     print("   ➤ **The Clue:** Malware often hides secrets in **Command Line Options**.")
@@ -145,8 +142,8 @@ def main():
     
     require_input("Type 'ready' to learn how to audit processes: ", "ready")
 
-    if not os.path.isfile(ps_dump_path):
-        print_error(f"{DUMP_FILE} not found in this folder!")
+    if not ps_dump_path.is_file():
+        print_error(f"{DUMP_FILE} not found inside environment path context.")
         sys.exit(1)
 
     # 5. Tool Explanation
@@ -172,19 +169,19 @@ def main():
         print(f"{Colors.CYAN}📂 Process List (Unique Binaries):{Colors.END}")
         print("-" * 40)
         for idx, name in enumerate(display_names, 1):
-            # Truncate long names for menu
+            # Truncate long names for menu layout rendering
             display_name = (name[:50] + '..') if len(name) > 50 else name
             print(f"{Colors.BOLD}{idx}{Colors.END}. {display_name}")
         print(f"{len(display_names) + 1}. Exit")
         print("-" * 40)
 
         try:
-            choice_str = input(f"\n{Colors.YELLOW}Select a process to inspect (1-{len(display_names)+1}): {Colors.END}").strip()
+            choice_str = safe_input(f"\n{Colors.YELLOW}Select a process to inspect (1-{len(display_names)+1}): {Colors.END}").strip()
             if not choice_str.isdigit():
                 raise ValueError
             choice = int(choice_str)
         except ValueError:
-            print_error("Invalid input. Please enter a number.")
+            print_error("Invalid input. Please enter a valid menu list item number.")
             pause()
             continue
 
@@ -195,13 +192,13 @@ def main():
             if result_text:
                 if "CCRI-" in result_text:
                     print(f"\n{Colors.GREEN}✅ SUSPICIOUS OPTION FOUND!{Colors.END}")
-                    print(f"   The flag is hidden in the options of {Colors.BOLD}{os.path.basename(binary)}{Colors.END}.")
+                    print(f"   The flag is hidden in the options of {Colors.BOLD}{Path(binary).name}{Colors.END}.")
 
                 while True:
                     print("\nOptions:")
                     print("1. Return to process list")
                     print(f"2. Save this output to a file ({OUTPUT_FILE})\n")
-                    option = input(f"{Colors.YELLOW}Choose an option (1–2): {Colors.END}").strip()
+                    option = safe_input(f"{Colors.YELLOW}Choose an option (1-2): {Colors.END}").strip()
 
                     if option == "1":
                         break
@@ -210,12 +207,12 @@ def main():
                         pause()
                         break
                     else:
-                        print_error("Invalid choice.")
+                        print_error("Invalid choice specification context entry.")
         elif choice == len(display_names) + 1:
             print(f"\n{Colors.CYAN}👋 Exiting.{Colors.END}")
             break
         else:
-            print_error("Invalid choice.")
+            print_error("Invalid selection index constraint.")
             pause()
 
 if __name__ == "__main__":

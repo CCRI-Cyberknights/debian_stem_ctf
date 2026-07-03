@@ -2,24 +2,25 @@
 import sys
 import os
 import subprocess
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
 
-def get_correct_stream_id(pcap_file):
+def get_correct_stream_id(pcap_file: Path) -> str:
     """
     Uses tshark to find which TCP stream actually contains the flag 'CCRI'.
-    Returns the stream ID (e.g., '2') as a string.
+    Returns the stream ID (for example, '2') as a string.
     """
-    if not os.path.exists(pcap_file):
+    if not pcap_file.is_file():
         return "0"
         
     try:
         # We must carefully quote "CCRI" inside the filter so tshark treats it as a string
         # Filter: frame contains "CCRI"
         cmd = [
-            "tshark", "-r", pcap_file, 
+            "tshark", "-r", str(pcap_file), 
             "-Y", 'frame contains "CCRI"', 
             "-T", "fields", "-e", "tcp.stream"
         ]
@@ -34,8 +35,16 @@ def get_correct_stream_id(pcap_file):
         pass
     return "0" 
 
+def cleanup_artifacts():
+    """Removes lingering workspace tracking artifacts safely."""
+    Path("flag.txt").unlink(missing_ok=True)
+
 def main():
     bot = Coach("Packet Analyzer (tshark)")
+    
+    # Ensure a fresh execution canvas
+    cleanup_artifacts()
+    
     bot.start()
 
     try:
@@ -47,14 +56,14 @@ def main():
             command_to_display="cd challenges/18_PcapSearch"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/18_PcapSearch"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/18_PcapSearch")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
+        # ==================================
 
         # Detect the stream ID dynamically
-        target_stream = get_correct_stream_id("traffic.pcap")
+        target_stream = get_correct_stream_id(Path("traffic.pcap"))
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -80,7 +89,6 @@ def main():
                 "We need `tshark` to find the **TCP Stream ID** so we can reconstruct the full conversation.\n\n"
                 "**Note on Syntax:** We use `'single quotes'` to wrap the command so the `\"double quotes\"` get passed to tshark correctly."
             ),
-            # FIX: Using 'frame contains "CCRI"' to satisfy tshark syntax
             command_to_display="tshark -r traffic.pcap -Y 'frame contains \"CCRI\"' -T fields -e tcp.stream"
         )
 
@@ -95,13 +103,8 @@ def main():
                 "2. Quiet mode: `-q`\n"
                 "3. Follow Stream: `-z follow,tcp,ascii,[STREAM_ID]`"
             ),
-            # Template showing the correct ID
             command_template=f"tshark -r traffic.pcap -q -z follow,tcp,ascii,{target_stream}",
-            
-            # Prefix for validation
             command_prefix="tshark -r traffic.pcap -q -z follow,tcp,ascii,",
-            
-            # Regex ensures they use the correct stream ID
             command_regex=rf"^tshark -r traffic\.pcap -q -z follow,tcp,ascii,{target_stream}$"
         )
 
@@ -113,12 +116,8 @@ def main():
                 "Run the command again and save the full evidence to `flag.txt`."
             ),
             command_template=f"tshark -r traffic.pcap -q -z follow,tcp,ascii,{target_stream} > flag.txt",
-            
             command_prefix="tshark",
-            
-            # Regex for the redirect
             command_regex=rf"^tshark -r traffic\.pcap -q -z follow,tcp,ascii,{target_stream} > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 
@@ -135,6 +134,8 @@ def main():
 
     except KeyboardInterrupt:
         bot.finish()
+    finally:
+        cleanup_artifacts()
 
 if __name__ == "__main__":
     main()

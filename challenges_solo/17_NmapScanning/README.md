@@ -1,23 +1,21 @@
 # 📡 Challenge 17: Nmap Scan Puzzle
 
 **Mission Briefing:**
-CryptKeepers operatives are hosting several rogue services on this system to communicate with their botnet.
-We know these services are listening on local TCP ports in the **9000–9100** range.
-Your mission is to scan the network, identify the active "doors" (ports), and interrogate each service to find the one carrying the valid agency flag.
+CryptKeepers operatives are hosting several rogue services on this system to communicate with their botnet. We know these services are listening on local TCP ports in the 9000–9100 range. Your mission is to scan the network, identify the active "doors" (ports), and interrogate each service to find the one carrying the valid agency flag.
 
 ## 🧠 Intelligence Report
 * **The Concept:** **Port Scanning**. Computers use "ports" (numbered 1–65535) to manage network connections. Think of an IP address as a building and ports as the apartment numbers.
-* **The Tool:** **Nmap** (Network Mapper). It knocks on every door in a specified range to see which ones are open. 
+* **The Tool:** **Nmap** (Network Mapper). It knocks on every door in a specified range to see which ones are open.
 * **The Strategy:**
-    1.  **Scan:** Find the open ports between 9000 and 9100.
-    2.  **Connect:** Use `curl` or `nc` (Netcat) to talk to the services running on those ports.
+    1. **Scan:** Find the open ports between 9000 and 9100.
+    2. **Connect:** Use `curl` or `nc` (Netcat) to talk to the services running on those ports.
 * **The Warning:** Most of the open ports are decoys hosting **fake flags**. You must verify which one is the real flag.
 
 ## 📝 Investigator’s Journal
 *Notes from the field:*
 
-> "I know they are hiding in the 9000s. If you scan the whole machine, it'll take too long. Focus your Nmap scan on `9000-9100`.
->
+> "I know they are hiding in the 9000s. If you scan the whole machine, it will take too long. Focus your Nmap scan on `9000-9100`.
+> 
 > Once you see the open ports, you have to manually check them. Use `curl` or `nc` to interact with the services. When you identify the one transmitting the valid signal, don't just read it—capture it. Redirect the specific output containing the flag into a file named `flag.txt`."
 
 ## 📂 Files in This Folder
@@ -25,9 +23,9 @@ Your mission is to scan the network, identify the active "doors" (ports), and in
 
 ---
 
-## 🛠 Tools & Techniques
+## 🛠️ Tools & Techniques
 
-You are mapping the digital terrain.
+You are mapping the digital terrain using these utilities:
 
 | Tool | Purpose | Usage Example |
 | :--- | :--- | :--- |
@@ -38,7 +36,7 @@ You are mapping the digital terrain.
 
 > 💡 **Tip:** Nmap output looks like this:
 > ```text
-> PORT     STATE SERVICE
+> PORT      STATE SERVICE
 > 9001/tcp open  tor-orport
 > 9050/tcp open  tor-socks
 > ```

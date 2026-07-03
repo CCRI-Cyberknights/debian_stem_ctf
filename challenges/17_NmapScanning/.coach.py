@@ -2,9 +2,10 @@
 import sys
 import os
 import socket
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
 
 def check_web_server():
@@ -23,10 +24,18 @@ def check_web_server():
     except Exception:
         pass
 
+def cleanup_artifacts():
+    """Removes lingering workspace tracking artifacts safely."""
+    Path("flag.txt").unlink(missing_ok=True)
+
 def main():
     check_web_server()
     
     bot = Coach("Network Mapper (nmap)")
+    
+    # Ensure a fresh execution canvas
+    cleanup_artifacts()
+    
     bot.start()
 
     try:
@@ -36,11 +45,11 @@ def main():
             command_to_display="cd challenges/17_NmapScanning"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/17_NmapScanning"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/17_NmapScanning")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
+        # ==================================
 
         # STEP 2: The Intel
         bot.teach_step(
@@ -73,12 +82,8 @@ def main():
                     "Pick an open port from the list above and `curl` it.\n"
                     "**Look for 'CCRI-...' in the output.**"
                 ),
-                # Flexible template allowing any port
                 command_template="curl localhost:[PORT]",
-                
                 command_prefix="curl localhost:",
-                
-                # Regex allows any digits: curl localhost:8000
                 command_regex=r"^curl localhost:\d+$"
             )
 
@@ -98,13 +103,9 @@ def main():
                 "Great work finding the needle in the haystack!\n"
                 "Now, run that **exact command** again, but add `> flag.txt` to save the evidence."
             ),
-            command_template="curl localhost:[CORRECT_PORT] > flag.txt",
-            
+            command_template="curl localhost:[PORT] > flag.txt",
             command_prefix="curl localhost:",
-            
-            # Regex: curl localhost:8042 > flag.txt
             command_regex=r"^curl localhost:\d+ > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 
@@ -121,6 +122,8 @@ def main():
 
     except KeyboardInterrupt:
         bot.finish()
+    finally:
+        cleanup_artifacts()
 
 if __name__ == "__main__":
     main()

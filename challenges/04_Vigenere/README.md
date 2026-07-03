@@ -1,9 +1,9 @@
-# 🧩 Vigenère Cipher Challenge
+# 🔐 Challenge 04: Vigenère Cipher
 
 **Mission Briefing:**
 You have recovered a scrambled message (`cipher.txt`) from an intercepted communication. Our analysts suspect it was encoded using the **Vigenère cipher**.
 
-Unlike simple rotation ciphers (like ROT13), Vigenère uses a **keyword** to shift letters differently throughout the message. To break it, you need to know (or guess) that keyword.
+Unlike simple rotation ciphers (like ROT13), Vigenère uses a **keyword** to shift letters differently throughout the message. To break it, you need to know or guess that keyword.
 
 ## 🧠 Intelligence Report
 * **The Cipher:** Vigenère (Polyalphabetic Substitution).
@@ -13,8 +13,9 @@ Unlike simple rotation ciphers (like ROT13), Vigenère uses a **keyword** to shi
 
 **Your Goal:** Deduce the keyword from the clue, use the available tools to decrypt the message, and capture the flag.
 
-## 📂 Files in this folder
-* `cipher.txt` – The encrypted message.
+## 📂 Files in This Folder
+* `cipher.txt`: The encrypted message.
 
 ---
-**🏁 Flag format:** `CCRI-AAAA-1111`
+
+**🏁 Flag Format:** `CCRI-AAAA-1111`

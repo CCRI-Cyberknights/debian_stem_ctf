@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
+
+def cleanup():
+    """Ensures a clean starting environment by purging any stale flags."""
+    Path("flag.txt").unlink(missing_ok=True)
 
 def main():
     bot = Coach("Metadata Inspector (exiftool)")
+    
+    # Ensure clean slate before initialization
+    cleanup()
+    
     bot.start()
 
     try:
@@ -19,11 +28,10 @@ def main():
             command_to_display="cd challenges/10_Metadata"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/10_Metadata"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/10_Metadata")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -53,16 +61,9 @@ def main():
                 "2. Use `>` to save the result to 'flag.txt'.\n\n"
                 "Construct the command:"
             ),
-            # Template showing the pattern
             command_template="exiftool capybara.jpg | grep \"CCRI\" > flag.txt",
-            
-            # Prefix for visual hint
             command_prefix="exiftool capybara.jpg | grep ",
-            
-            # Strict validation regex
-            # Matches: exiftool capybara.jpg | grep "CCRI" > flag.txt
             command_regex=r"^exiftool capybara\.jpg \| grep \"CCRI\" > flag\.txt$",
-            
             clean_files=["flag.txt"]
         )
 

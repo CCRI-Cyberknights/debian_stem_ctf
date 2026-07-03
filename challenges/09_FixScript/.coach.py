@@ -2,28 +2,26 @@
 import sys
 import os
 import re
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
 
-def get_script_data(filename):
+def get_script_data(filepath: Path):
     """
-    Reads the file to extract part1, part2, and the current broken symbol.
-    Returns: (part1, part2, bug_symbol) or (None, None, None) if failed.
+    Reads the file target to extract part1, part2, and the active bug operator.
+    Returns: (part1, part2, bug_symbol) or (None, None, None) on failure.
     """
-    # Look for file in current directory
-    filepath = filename 
-    
-    try:
-        with open(filepath, "r") as f:
-            content = f.read()
+    if not filepath.is_file():
+        return None, None, "?"
         
-        # Regex to find: part1 = 123
+    try:
+        content = filepath.read_text(encoding="utf-8")
+        
+        # Isolate script parameter states using explicit token mapping groups
         p1 = re.search(r"part1\s*=\s*(\d+)", content)
-        # Regex to find: part2 = 456
         p2 = re.search(r"part2\s*=\s*(\d+)", content)
-        # Regex to find: code = part1 [OPERATOR] part2
         bug = re.search(r"code\s*=\s*part1\s*([\+\-\*\/])\s*part2", content)
         
         if p1 and p2 and bug:
@@ -35,23 +33,23 @@ def get_script_data(filename):
 
 def generate_math_table(p1, p2):
     """
-    Generates a text table showing the result of all 4 operators.
-    Returns the string table and the correct symbol.
+    Generates an alignment grid evaluating all 4 mathematical operators.
+    Returns the formatted text table string along with the valid target symbol.
     """
     if p1 is None or p2 is None:
-        return "Could not read data.", "+"
+        return "Could not parse workspace data variables.", "+"
 
-    correct_symbol = "+" # default
+    correct_symbol = "+"
     
-    # Header
+    # Render table schema headers
     table =  "\n   Operator | Calculation       | Result      | Status\n"
     table += "   ---------|-------------------|-------------|-----------\n"
     
     for symbol, name in [("+", "Add"), ("-", "Sub"), ("*", "Mult"), ("/", "Div")]:
         try:
+            # Safely evaluate primitive operator metrics
             val = eval(f"{p1} {symbol} {p2}")
             
-            # Formatting checks
             if isinstance(val, int):
                 val_str = f"{val}"
             elif val.is_integer():
@@ -60,7 +58,7 @@ def generate_math_table(p1, p2):
             else:
                 val_str = f"{val:.2f}"
             
-            # Logic check: Valid flags use a 4-digit integer code (1000-9999)
+            # Logic constraint check: Valid target codes fit between 1000 and 9999
             if 1000 <= val <= 9999 and val == int(val):
                 status = "✅ VALID (Target)"
                 correct_symbol = symbol
@@ -74,37 +72,43 @@ def generate_math_table(p1, p2):
 
     return table, correct_symbol
 
+def cleanup():
+    """Purges any lingering flag extractions from previous lab evaluations."""
+    Path("flag.txt").unlink(missing_ok=True)
+
 def main():
     bot = Coach("Python Debugging")
     
-    # 1. Analyze the file JIT (Just In Time)
-    # We do this before starting the bot so we have the 'Intel' ready
+    # Ensure environment surface starts completely clean
+    cleanup()
+
+    # Just-In-Time evaluation lookups matching core execution environment shapes
     try:
-        if os.path.exists("challenges/09_FixScript/broken_flag.py"):
-             target_path = "challenges/09_FixScript/broken_flag.py"
-        elif os.path.exists("broken_flag.py"):
-             target_path = "broken_flag.py"
-        else:
-             target_path = None
+        path_options = [
+            Path("challenges/09_FixScript/broken_flag.py"),
+            Path("broken_flag.py")
+        ]
+        target_path = None
+        for path_opt in path_options:
+            if path_opt.is_file():
+                target_path = path_opt
+                break
 
         if target_path:
             p1, p2, bug_symbol = get_script_data(target_path)
             math_table, correct_symbol = generate_math_table(p1, p2)
             
-            # Determine human-readable name for the correct symbol
             symbol_map = {"+": "Plus (+)", "-": "Minus (-)", "*": "Multiply (*)", "/": "Divide (/)"}
             correct_name = symbol_map.get(correct_symbol, "Operator")
         else:
-            # Fallback if file is missing (prevents crash)
             p1, p2, bug_symbol = 0, 0, "?"
-            math_table = "File not found."
+            math_table = "Target logic file was not discovered."
             correct_symbol = "+"
             correct_name = "Plus"
 
     except Exception:
-        # Fallback for safety
         p1, p2, bug_symbol = 0, 0, "?"
-        math_table = "Error analyzing file."
+        math_table = "Internal runtime parsing error analyzing target file."
         correct_symbol = "+"
         correct_name = "Plus"
 
@@ -117,11 +121,10 @@ def main():
             command_to_display="cd challenges/09_FixScript"
         )
         
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/09_FixScript"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/09_FixScript")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -148,7 +151,7 @@ def main():
             command_to_display="python3 broken_flag.py"
         )
 
-        # STEP 5: The Debug Analysis & Editing
+        # STEP 5: Debug Analysis & Editing
         bot.teach_step(
             instruction=(
                 f"**Analysis:**\n"

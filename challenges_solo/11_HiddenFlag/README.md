@@ -1,11 +1,10 @@
-# 🗃️ Challenge 11: Hidden File Hunt
+# 🕵️ Challenge 11: Hidden File Hunt
 
 **Mission Briefing:**
-A rogue CryptKeeper operative has stashed the agency flag somewhere deep inside the `junk/` directory.
-To the naked eye, this folder looks like a boring collection of backups and logs. However, intelligence indicates that the flag is hidden inside a file that "doesn't want to be found."
+A rogue CryptKeeper operative has stashed the agency flag somewhere deep inside the `junk/` directory. To the naked eye, this folder looks like a boring collection of backups and logs. However, intelligence indicates that the flag is hidden inside a file that "doesn't want to be found."
 
 ## 🧠 Intelligence Report
-* **The Concept:** **Hidden Files**. In Linux, any file starting with a dot (`.secret`) is hidden from standard directory listings. 
+* **The Concept:** **Hidden Files**. In Linux, any file starting with a dot (e.g., `.secret`) is hidden from standard directory listings. 
 * **The Challenge:** **Recursion**. The folder contains subfolders, which contain more subfolders. You cannot check them one by one.
 * **The Warning:** The operative planted **four fake flags** (decoys) to slow you down.
 
@@ -13,23 +12,23 @@ To the naked eye, this folder looks like a boring collection of backups and logs
 *Notes from the field:*
 
 > "It's a needle in a haystack. I tried running `ls`, but I saw nothing useful.
->
+> 
 > You need to dig deeper. The flag might be inside a hidden file (a 'dotfile') or buried three levels down in a subdirectory. Instead of opening files one by one, I recommend using a tool like `grep` to search the *contents* of every file in the tree. Look for the pattern that matches our standard format (`CCRI-AAAA-1111`)."
 
 ## 📂 Files in This Folder
-* `junk/` — A maze of subdirectories containing junk files and the flag.
+* `junk/`: A maze of subdirectories containing junk files and the flag.
 
 ---
 
-## 🛠 Tools & Techniques
+## 🛠️ Tools & Techniques
 
-You need tools that can see the invisible and look through walls (folders).
+Use these terminal tools to see the invisible and search through the directory structure:
 
 | Tool | Purpose | Usage Example |
 | :--- | :--- | :--- |
-| **ls -a** | Lists **all** files, revealing hidden dotfiles. | `ls -a junk/` |
-| **find** | The ultimate search tool. Lists every file in every subfolder recursively. | `find junk/ -type f` |
-| **grep -r** | recursively searches the *contents* of files for a pattern. | `grep -r "CCRI-" junk/` |
+| **ls -a** | Lists **all** files, including hidden "dotfiles". | `ls -a junk/` |
+| **find** | The ultimate search tool. Lists every file recursively. | `find junk/ -type f` |
+| **grep -r** | Recursively searches the *contents* of files for a pattern. | `grep -r "CCRI-" junk/` |
 
 > 💡 **Tip:** The `find` command is powerful.
 > * `-type f` means "look for files only" (ignore folders).

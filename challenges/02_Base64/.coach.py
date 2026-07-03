@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 
-# Add root to path to find coach_core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from coach_core import Coach
 
 def cleanup():
-    if os.path.exists("flag.txt"):
-        try:
-            os.remove("flag.txt")
-        except:
-            pass
+    """Ensures a clean starting environment by purging any stale flags."""
+    Path("flag.txt").unlink(missing_ok=True)
 
 def main():
     bot = Coach("Intercepted Transmission (Base64)")
@@ -31,11 +29,10 @@ def main():
             command_to_display="cd challenges/02_Base64"
         )
 
-        # === SYNC DIRECTORY ===
-        target_dir = "challenges/02_Base64"
-        if os.path.exists(target_dir):
+        # === SYNC DIRECTORY VIA PATHLIB ===
+        target_dir = Path("challenges/02_Base64")
+        if target_dir.is_dir():
             os.chdir(target_dir)
-        # ======================
 
         # STEP 2: Discovery
         bot.teach_step(
@@ -48,7 +45,7 @@ def main():
         # STEP 3: Verification (Using Intel)
         bot.teach_step(
             instruction=(
-                "The **Mission Brief** states that Base64 usually ends with `==`.\n"
+                "The Mission Brief states that Base64 usually ends with `==`.\n"
                 "Let's inspect the file with `cat` to verify it matches this signature."
             ),
             command_to_display="cat encoded.txt"

@@ -1,42 +1,39 @@
 #!/usr/bin/env python3
-import os
-import sys
 import subprocess
+import sys
 import time
 import re
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen, safe_input
 
 # === Config ===
 BINARY_FILE = "hidden_flag"
 STRINGS_FILE = "extracted_strings.txt"
-REGEX_PATTERN = r'CCRI-[A-Z0-9]{4}-\d{4}' # Updated to match standard CCRI flag format precisely
+REGEX_PATTERN = r'CCRI-[A-Z0-9]{4}-\d{4}'
 
-def get_path(filename):
-    """Ensure the file is saved next to this script, regardless of where it's run from."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-
-def run_strings(binary_path, output_path):
+def run_strings(binary_path: Path, output_path: Path):
+    """Runs the system utility to drop readable text sequences into target file paths."""
     try:
-        with open(output_path, "w", encoding="utf-8", errors="ignore") as out_f:
-            subprocess.run(["strings", binary_path], stdout=out_f, check=True)
-    except subprocess.CalledProcessError:
-        print_error("Failed to run 'strings'.")
+        with output_path.open("w", encoding="utf-8", errors="ignore") as out_f:
+            subprocess.run(["strings", str(binary_path)], stdout=out_f, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print_error("Failed to execute standard system 'strings' analysis diagnostic binary.")
         sys.exit(1)
 
-def search_for_flags(file_path, regex):
+def search_for_flags(file_path: Path, regex: str) -> list:
+    """Scans file streams line-by-line using regular expressions to isolate matching structures."""
     matches = []
     try:
-        with open(file_path, "r", errors="ignore") as f:
-            for i, line in enumerate(f):
-                # Find all occurrences in the line
+        with file_path.open("r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
                 found = re.findall(regex, line)
                 for flag in found:
                     matches.append(flag)
     except Exception as e:
-        print_error(f"Error during flag search: {e}")
+        print_error(f"Error encountered during automated flag regular expression processing search: {e}")
         sys.exit(1)
     return matches
 
@@ -44,11 +41,12 @@ def main():
     # 1. Setup
     resize_terminal(35, 90)
     
-    binary_path = get_path(BINARY_FILE)
-    strings_path = get_path(STRINGS_FILE)
+    script_dir = Path(__file__).resolve().parent
+    binary_path = script_dir / BINARY_FILE
+    strings_path = script_dir / STRINGS_FILE
 
-    if not os.path.isfile(binary_path):
-        print_error(f"The file '{BINARY_FILE}' was not found.")
+    if not binary_path.is_file():
+        print_error(f"The forensic analysis target executable file '{BINARY_FILE}' was not found.")
         sys.exit(1)
 
     # 2. Mission Briefing
@@ -58,7 +56,6 @@ def main():
     print(f"🔧 Tool in use: {Colors.BOLD}strings{Colors.END}\n")
     print("🎯 Goal: Uncover a hidden flag embedded inside this compiled program.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Lock:** The file is a binary executable (not readable text).")
     print("   ➤ **The Strategy:** Static Analysis (reading the raw data bytes).")
@@ -83,44 +80,44 @@ def main():
     time.sleep(0.3)
     print_success(f"All extracted strings saved to: {STRINGS_FILE}\n")
 
-    print(f"📄 Previewing the first 15 lines of extracted text:")
+    print("📄 Previewing the first 15 lines of extracted text:")
     print("-" * 50)
     try:
-        with open(strings_path, "r", encoding="utf-8", errors="ignore") as f:
+        with strings_path.open("r", encoding="utf-8", errors="ignore") as f:
             for i, line in enumerate(f):
-                if i >= 15: break
+                if i >= 15: 
+                    break
                 print(f"{Colors.YELLOW}{line.strip()}{Colors.END}")
     except FileNotFoundError:
-        print_error(f"Could not open {STRINGS_FILE}.")
+        print_error(f"Could not open extracted storage baseline {STRINGS_FILE}.")
     print("-" * 50 + "\n")
 
     # 4. Keyword Search
     require_input("Type 'search' to enter a keyword search mode: ", "search")
     
     print(f"We know the flag starts with '{Colors.BOLD}CCRI{Colors.END}'.")
-    keyword = input(f"{Colors.YELLOW}🔍 Enter a keyword to search (or hit ENTER to use 'CCRI'): {Colors.END}").strip()
+    keyword = safe_input(f"{Colors.YELLOW}🔍 Enter a keyword to search (or hit ENTER to use 'CCRI'): {Colors.END}").strip()
     
     if not keyword:
         keyword = "CCRI"
     
     print(f"\n🔎 Searching for '{Colors.BOLD}{keyword}{Colors.END}' in {STRINGS_FILE}...\n")
     
-    # Show the grep command they are simulating
     print("   Command being used under the hood:")
     print(f"      {Colors.GREEN}grep {keyword} {STRINGS_FILE}{Colors.END}\n")
     time.sleep(0.5)
     
     try:
-        # We use subprocess to get the nice colored grep output if available
-        subprocess.run(["grep", "--color=always", keyword, strings_path], check=False)
+        # Pass path objects stringified securely to native subprocess arguments
+        subprocess.run(["grep", "--color=always", keyword, str(strings_path)], check=False)
     except FileNotFoundError:
-        print_error("grep command not found.")
+        print_error("System utility grep command was not discovered on the active host profile.")
         
     print("\n")
     print(f"{Colors.CYAN}🧠 Hint: If you see the flag above, copy it!{Colors.END}")
-    print(f"   Format: CCRI-AAAA-1111\n")
+    print("   Format: CCRI-AAAA-1111\n")
 
-    # 5. Automated Scan (Backup)
+    # 5. Automated Scan
     matches = search_for_flags(strings_path, REGEX_PATTERN)
     if matches:
         print(f"{Colors.GREEN}📌 Automated Scan confirmed {len(matches)} flag(s):{Colors.END}")

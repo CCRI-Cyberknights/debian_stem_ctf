@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-import os
 import sys
-import subprocess
 import time
 import re
+from pathlib import Path
 
-# === Import Core ===
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen
+# === Import Core via Pathlib ===
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from exploration_core import Colors, header, pause, require_input, spinner, print_success, print_error, print_info, resize_terminal, clear_screen, safe_input
 
 # === Config ===
 LOG_FILE = "auth.log"
@@ -15,18 +14,16 @@ OUTPUT_FILE = "flag.txt"
 # This regex matches the format CCRI-AAAA-1111 or similar decoys
 REGEX_PATTERN = r"CCRI-[A-Z0-9]{4}-[A-Z0-9]{4}"
 
-def get_path(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
-
-def scan_for_flags(log_file, regex_pattern):
+def scan_for_flags(log_file: Path, regex_pattern: str) -> list:
+    """Scans targeted log tracking objects line-by-line using regex parameters."""
     matches = []
     try:
-        with open(log_file, "r") as f:
+        with log_file.open("r", encoding="utf-8", errors="ignore") as f:
             for line in f:
                 if re.search(regex_pattern, line):
                     matches.append(line.strip())
     except Exception as e:
-        print_error(f"Error while scanning {log_file}: {e}")
+        print_error(f"Error while scanning log archive target {log_file.name}: {e}")
         sys.exit(1)
     return matches
 
@@ -34,12 +31,12 @@ def main():
     # 1. Setup
     resize_terminal(35, 90)
     
-    script_dir = os.path.abspath(os.path.dirname(__file__))
-    log_path = get_path(LOG_FILE)
-    output_path = get_path(OUTPUT_FILE)
+    script_dir = Path(__file__).resolve().parent
+    log_path = script_dir / LOG_FILE
+    output_path = script_dir / OUTPUT_FILE
 
-    if not os.path.isfile(log_path):
-        print_error(f"{LOG_FILE} not found in {script_dir}.")
+    if not log_path.is_file():
+        print_error(f"{LOG_FILE} not found inside environment scope: {script_dir.as_posix()}.")
         sys.exit(1)
 
     # 2. Mission Briefing
@@ -49,7 +46,6 @@ def main():
     print(f"🔧 Tool: {Colors.BOLD}grep{Colors.END}\n")
     print("🎯 Goal: Filter thousands of lines of noise to find the hidden flag.\n")
     
-    # Narrative Alignment: Reference the README Intel
     print(f"{Colors.CYAN}🧠 Intelligence Report (from README):{Colors.END}")
     print("   ➤ **The Problem:** The log file is too large to read line-by-line.")
     print("   ➤ **The Needle:** We are looking for the agency flag format (`CCRI-...`).")
@@ -63,8 +59,13 @@ def main():
     print("First, let's see how big this haystack is.\n")
     print(f"   {Colors.GREEN}ls -lh {LOG_FILE}{Colors.END}\n")
     
-    # Simulate ls -lh output
-    size_mb = os.path.getsize(log_path) / 1024 / 1024
+    # Calculate file size metrics natively via Pathlib stat traits
+    try:
+        size_mb = log_path.stat().st_size / 1024 / 1024
+    except Exception as e:
+        print_error(f"Failed to read data traits from host file: {e}")
+        sys.exit(1)
+        
     print(f"-rw-r--r-- 1 root root {size_mb:.1f}M {time.strftime('%b %d %H:%M')} {LOG_FILE}\n")
     print(f"That is a {size_mb:.1f}MB text file. Reading it manually is impossible.\n")
     
@@ -74,12 +75,13 @@ def main():
     print(f"\n📄 First 10 lines of {LOG_FILE}:")
     print("-" * 50)
     try:
-        with open(log_path, "r") as f:
+        with log_path.open("r", encoding="utf-8", errors="ignore") as f:
             for i, line in enumerate(f):
-                if i >= 10: break
+                if i >= 10: 
+                    break
                 print(f"{Colors.YELLOW}{line.strip()}{Colors.END}")
     except FileNotFoundError:
-        print_error("Could not open log file.")
+        print_error("Could not locate or read target log stream configuration.")
     print("-" * 50 + "\n")
     
     print("It's full of SSH login attempts and noise.\n")
@@ -93,7 +95,7 @@ def main():
     
     print("🔍 Command breakdown:")
     print(f"   {Colors.BOLD}grep \"CCRI\"{Colors.END}   → Search for lines containing 'CCRI'")
-    print(f"   {Colors.BOLD}{LOG_FILE}{Colors.END}        → The source file")
+    print(f"   {Colors.BOLD}{LOG_FILE}{Colors.END}         → The source file")
     print(f"   {Colors.BOLD}> {OUTPUT_FILE}{Colors.END}   → Save matches to a file (instead of screen)\n")
     
     require_input("Type 'run' to execute the filter: ", "run")
@@ -101,14 +103,16 @@ def main():
     print(f"\n⏳ Scanning {LOG_FILE}...")
     spinner("Filtering noise")
 
-    # Perform the scan
+    # Perform the scan processing layer
     matches = scan_for_flags(log_path, REGEX_PATTERN)
 
     if matches:
-        # Save results
-        with open(output_path, "w") as f_out:
-            for line in matches:
-                f_out.write(line + "\n")
+        # Commit filtered entries directly onto target disk path structures
+        try:
+            output_path.write_text("\n".join(matches) + "\n", encoding="utf-8")
+        except Exception as e:
+            print_error(f"Failed to record isolated entry strings onto disk mapping storage: {e}")
+            sys.exit(1)
 
         print("\n")
         print_success("Match found!")
@@ -120,7 +124,7 @@ def main():
         print(f"📁 Evidence saved to: {Colors.BOLD}{OUTPUT_FILE}{Colors.END}")
         print(f"{Colors.CYAN}🧠 This confirms the user successfully logged in with the flag.{Colors.END}\n")
     else:
-        print_error("No matches found for 'CCRI'.")
+        print_error("No matches found for token configuration parameter 'CCRI'.")
         print_info("The hacker might have used a different format, or the log is clean.")
 
     # 6. Advanced (Bonus Lesson)
