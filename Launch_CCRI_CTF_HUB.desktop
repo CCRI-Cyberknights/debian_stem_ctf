@@ -2,7 +2,9 @@
 Version=1.0
 Type=Application
 Terminal=true
-Name=Launch CCRI CTF Hub
-Exec=bash -c "cd /home/ccri_admin/Desktop/stemday_2025 && python3 start_web_hub.py"
-Icon=/home/ccri_admin/Desktop/stemday_2025/web_version_admin/static/assets/CyberKnights_2.png
-Name[en_US]=Launch CCRI CTF Hub
+Name=Launch_CCRI_CTF_Hub
+Exec=bash -c "cd /home/stem_ctf/Desktop/debian_stem_ctf && .venv/bin/python3 start_web_hub.py"
+Icon=/home/stem_ctf/Desktop/debian_stem_ctf/web_version_admin/static/assets/CyberKnights_2.png
+Name[en_US]=Launch_CCRI_CTF_Hub
+Comment=Launch the Dev Environment for CCRI CTF
+Categories=Utility;

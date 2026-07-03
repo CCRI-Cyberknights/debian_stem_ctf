@@ -8,8 +8,6 @@ import shutil
 import stat
 from pathlib import Path
 
-STEGO_DEB_URL = "https://raw.githubusercontent.com/CCRI-Cyberknights/stemday_2025/main/debs/steghide_0.6.0-1_amd64.deb"
-
 APT_ENV = {
     **os.environ,
     "DEBIAN_FRONTEND": "noninteractive",
@@ -41,34 +39,6 @@ def apt_install_packages(packages):
         "-o", 'Dpkg::Options::=--force-confold',
     ]
     run(base_cmd + packages)
-
-# ---------- OS helpers ----------
-def read_os_release():
-    info = {}
-    try:
-        with open("/etc/os-release", "r") as f:
-            for line in f:
-                line = line.strip()
-                if not line or "=" not in line:
-                    continue
-                k, v = line.split("=", 1)
-                v = v.strip().strip('"')
-                info[k] = v
-    except FileNotFoundError:
-        pass
-    return info
-
-def is_parrot():
-    info = read_os_release()
-    id_ = info.get("ID", "").lower()
-    like = (info.get("ID_LIKE", "") or "").lower()
-    return id_ == "parrot" or "parrot" in like
-
-def arch():
-    try:
-        return subprocess.check_output(["dpkg", "--print-architecture"], text=True).strip()
-    except Exception:
-        return None
 
 # ---------- Wireshark / dumpcap ----------
 def ensure_group(name):
@@ -129,16 +99,20 @@ def preseed_wireshark_and_install():
     apt_install_packages(["wireshark", "wireshark-common", "tshark", "libcap2-bin"])
     ensure_group("wireshark")
     env_user = os.environ.get("SUDO_USER") or os.environ.get("USER") or ""
-    add_users_to_group("wireshark", [env_user, "user", "parrot"])
+    add_users_to_group("wireshark", [env_user, "user"])
 
-# ---------- Python / pip(x) ----------
+# ---------- Python / pip Virtual Environment ----------
 def pip_install():
-    print("🐍 Installing Python CLI tools via pipx...")
-    apt_install_packages(["pipx"])
-    run(["pipx", "ensurepath"])
-    run(["pipx", "install", "flask"])
-    print("📚 Installing Flask and MarkupSafe via pip (for Python imports)...")
-    run(["python3", "-m", "pip", "install", "--break-system-packages", "flask", "markupsafe"])
+    print("🐍 Creating isolated virtual environment...")
+    repo_root = Path(__file__).resolve().parent
+    venv_dir = repo_root / ".venv"
+    
+    run(["python3", "-m", "venv", str(venv_dir)])
+    venv_pip = venv_dir / "bin" / "pip"
+    
+    print("📚 Installing Flask and MarkupSafe safely inside the venv...")
+    run([str(venv_pip), "install", "--upgrade", "pip"])
+    run([str(venv_pip), "install", "flask", "markupsafe"])
 
 # ---------- zsteg ----------
 def install_zsteg():
@@ -164,58 +138,6 @@ Categories=Utility;Education;Development;
 """
     run(["bash", "-lc", f"printf %s {shlex.quote(desktop_entry)} | sudo tee /usr/share/applications/cyberchef.desktop >/dev/null"])
     run(["bash", "-lc", "command -v update-desktop-database >/dev/null && sudo update-desktop-database || true"], check=False)
-
-# ---------- Steghide (same logic as before) ----------
-def install_steghide_deb():
-    print("🕵️ Checking Steghide version...")
-    try:
-        version_output = subprocess.check_output(["steghide", "--version"], text=True).strip()
-        if "0.6.0" in version_output:
-            print("✅ Steghide 0.6.0 already installed.")
-            return
-    except Exception:
-        print("ℹ️ Steghide not found or outdated. Installing patched version...")
-
-    if arch() not in ("amd64",):
-        print("⚠️  Patched .deb is built for amd64. Falling back to repo install.")
-        apt_install_packages(["steghide"])
-        return
-
-    apt_install_packages(["wget"])
-    print("⬇️ Downloading Steghide 0.6.0 .deb package...")
-    run(["wget", "-q", STEGO_DEB_URL, "-O", "/tmp/steghide.deb"])
-
-    print("📦 Installing patched Steghide (auto-fix deps if needed)...")
-    rc = run("sudo dpkg -i /tmp/steghide.deb", check=False)
-    if rc != 0:
-        run(["sudo", "-E", "apt-get", "-f", "install", "-yq",
-             "-o", 'Dpkg::Options::=--force-confdef',
-             "-o", 'Dpkg::Options::=--force-confold'])
-    run("rm -f /tmp/steghide.deb")
-
-    if is_parrot():
-        print("📌 Pinning Steghide 0.6.0 on Parrot to prevent downgrade...")
-        pin_file = "/etc/apt/preferences.d/steghide"
-        pin_contents = """Package: steghide
-Pin: version 0.6.0*
-Pin-Priority: 1001
-"""
-        with open("/tmp/steghide-pin", "w") as f:
-            f.write(pin_contents)
-        run(["sudo", "mv", "/tmp/steghide-pin", pin_file])
-
-def install_steghide_auto(mode: str = "auto"):
-    env_force_deb = os.environ.get("FORCE_STEGHIDE_DEB") == "1"
-    if env_force_deb and mode == "auto":
-        mode = "deb"
-    if mode not in ("auto", "deb", "apt"):
-        mode = "auto"
-    if mode == "apt" or (mode == "auto" and not is_parrot()):
-        print("🧩 Installing Steghide from distro repositories...")
-        apt_install_packages(["steghide"])
-        return
-    print("🧩 Installing Steghide via patched .deb...")
-    install_steghide_deb()
 
 # ---------- Helpers for john/*2john parity ----------
 def ensure_john_and_helpers_on_path():
@@ -266,6 +188,16 @@ def configure_git(git_name=None, git_email=None):
     else:
         print("⚠️  Skipping Git prompts (non-interactive).")
 
+# ---------- XFCE Styling Engine ----------
+def configure_xfce_cyber_theme():
+    print("🎨 Sculpting the XFCE desktop layout into a security profile...")
+    # Anchor the standard top toolbar (Panel 1) to the upper display rail
+    run(["xfconf-query", "-c", "xfce4-panel", "-p", "/panels/panel-1/position", "-s", "p=6;x=0;y=0"], check=False)
+    run(["xfconf-query", "-c", "xfce4-panel", "-p", "/panels/panel-1/length", "-s", "100"], check=False)
+    # Inject slight alpha transparency into native XFCE terminal windows
+    run(["xfconf-query", "-c", "xfce4-terminal", "-p", "/background-darkness", "-n", "-t", "double", "-s", "0.95"], check=False)
+    print("✅ XFCE workspace structural layout adjusted.")
+
 # ---------- Desktop Launcher Setup ----------
 def setup_desktop_launcher():
     print("📎 Configuring desktop launcher for Main Repo...")
@@ -273,7 +205,6 @@ def setup_desktop_launcher():
     icon_path = repo_root / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
     launcher_path = repo_root / "Launch_CCRI_CTF_HUB.desktop"
 
-    # Fallback if the custom icon isn't there
     final_icon = str(icon_path) if icon_path.exists() else "utilities-terminal"
     
     content = f"""[Desktop Entry]
@@ -281,25 +212,21 @@ Version=1.0
 Type=Application
 Terminal=true
 Name=Launch_CCRI_CTF_Hub
-Exec=bash -c "cd {repo_root} && python3 start_web_hub.py"
+Exec=bash -c "cd {repo_root} && .venv/bin/python3 start_web_hub.py"
 Icon={final_icon}
 Name[en_US]=Launch_CCRI_CTF_Hub
 Comment=Launch the Dev Environment for CCRI CTF
+Categories=Utility;
 """
     try:
         with open(launcher_path, "w") as f:
             f.write(content)
         os.chmod(launcher_path, 0o755)
         
-        # Determine the user who owns the script to chown the launcher
         uid = os.stat(__file__).st_uid
         gid = os.stat(__file__).st_gid
         os.chown(launcher_path, uid, gid)
-        
-        # Try to mark trusted
-        subprocess.run(["gio", "set", str(launcher_path), "metadata::trusted", "true"],
-                       check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print("✅ Launcher updated with absolute paths & custom icon.")
+        print("✅ Launcher updated to target sandbox venv interpreter.")
     except Exception as e:
         print(f"⚠️  Could not update launcher: {e}")
 
@@ -308,10 +235,6 @@ def parse_args():
     p = argparse.ArgumentParser(description="CCRI CyberKnights environment setup")
     p.add_argument("--git-name", help="Git user.name (non-interactive)")
     p.add_argument("--git-email", help="Git user.email (non-interactive)")
-    p.add_argument("--steghide-mode",
-                   choices=["auto", "deb"],
-                   default="auto",
-                   help="Install Steghide using patched deb or auto (Parrot=deb, others=apt)")
     return p.parse_args()
 
 def main():
@@ -328,27 +251,25 @@ def main():
         "fonts-noto-color-emoji",
         "python3-markdown", "python3-scapy",
         "curl", "lsof", "xdg-utils", "libglib2.0-bin",
-        "gnome-terminal",
-        "exiftool", "zbar-tools", "hashcat", "unzip", "libmcrypt4",
+        "xfce4-terminal", "xfce4-goodies",  # Swapped GNOME assets for native XFCE modules
+        "exiftool", "zbar-tools", "hashcat", "unzip", "steghide",  # Native apt steghide tracking
         "nmap", "qrencode", "vim-common", "util-linux",
-        "binwalk", "fcrackzip", "john", "radare2", "imagemagick", "hexedit", "feh", "eog",
+        "binwalk", "fcrackzip", "john", "imagemagick", "hexedit", "feh",
         "p7zip-full", "ncat",
     ]
     apt_install_packages(apt_packages)
 
-    install_steghide_auto(args.steghide_mode)
     ensure_john_and_helpers_on_path()
     install_cyberchef_offline()
     pip_install()
     install_zsteg()
     configure_git(args.git_name, args.git_email)
-    
-    # NEW: Fix the launcher icon in the main repo
+    configure_xfce_cyber_theme()
     setup_desktop_launcher()
 
     print("\n✅ Base environment ready.")
-    print("   • Admin run (dev):   python3 web_version_admin/server.py")
-    print("   • Student run:       python3 ccri_ctf.pyz")
+    print("   • Admin run (dev):   .venv/bin/python3 web_version_admin/server.py")
+    print("   • Student run:       .venv/bin/python3 ccri_ctf.pyz")
     print("   • Desktop launcher:  Updated with custom icon! Double-click to run.")
     print("\n🎉 Setup complete!")
 
