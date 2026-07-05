@@ -249,14 +249,14 @@ def setup_desktop_launchers():
     icon_path = REPO_ROOT / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
     final_icon = str(icon_path) if icon_path.exists() else "utilities-terminal"
 
-    # 2. Define the exact launcher file templates
+    # 2. Define the launcher payloads mapping directly to your execution scripts
     launchers = {
         "Launch_CCRI_CTF_HUB.desktop": f"""[Desktop Entry]
 Version=1.0
 Type=Application
 Terminal=true
 Name=Launch_CCRI_CTF_Hub
-Exec=bash -c "cd {REPO_ROOT} && .venv/bin/python3 start_web_hub.py"
+Exec=bash -c "export BROWSER=firefox-esr; cd {REPO_ROOT} && .venv/bin/python3 start_web_hub.py"
 Icon={final_icon}
 Name[en_US]=Launch_CCRI_CTF_Hub
 Comment=Launch the Dev Environment for CCRI CTF
