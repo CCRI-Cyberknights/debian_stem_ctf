@@ -65,10 +65,11 @@ class Coach:
             print(f"❌ Error: Missing configuration target: {self.worker_script}")
             sys.exit(1)
             
-        # Instruct tmux to split the active window horizontally (-h)
-        # It automatically sets a 50/50 viewport alignment and executes the worker node script
+        # Instruct tmux to split the window horizontally (-h)
+        # We explicitly add the '-c' flag followed by the repository root directory string.
+        # This forces the bash shell to initialize at the baseline repo folder path.
         cmd = [
-            "tmux", "split-window", "-h", 
+            "tmux", "split-window", "-h", "-c", str(self.root_dir),
             sys.executable, str(self.worker_script), str(self.port)
         ]
         
@@ -77,10 +78,14 @@ class Coach:
         except Exception as e:
             print(f"❌ Failed to split tmux layout for worker node: {e}")
             sys.exit(1)
-
+    
     def _clean_files(self, file_list):
         if not file_list: 
             return
+        
+        # This tells Pylance that self.conn is safely a socket right now
+        assert self.conn is not None, "Worker node is not connected yet!"
+        
         cmd = "rm -f " + " ".join(file_list)
         self.conn.sendall(f"SILENT:{cmd}".encode('utf-8'))
         _ = self.conn.recv(1024)
@@ -97,6 +102,9 @@ class Coach:
     def teach_step(self, instruction, command_to_display, command_regex=None, clean_files=None):
         if clean_files: 
             self._clean_files(clean_files)
+
+        # 🌟 ADD THIS LINE: Explicit type guard for Pylance
+        assert self.conn is not None, "Socket connection lost or uninitialized"
 
         print(f"\n\033[96m{instruction}\033[0m")
         print(f"\n👉 Type exactly this command:\n   \033[1;93m{command_to_display}\033[0m")
@@ -126,6 +134,10 @@ class Coach:
 
     def teach_loop(self, instruction, command_template, command_prefix, correct_password=None, command_regex=None, clean_files=None):
         """Loops until the user runs a command that matches specific criteria."""
+        
+        # 🌟 ADD THIS LINE: Explicit type guard for Pylance
+        assert self.conn is not None, "Socket connection lost or uninitialized"
+
         print(f"\n\033[96m{instruction}\033[0m")
         print(f"\n👉 Use this format:\n   \033[1;93m{command_template}\033[0m")
 
