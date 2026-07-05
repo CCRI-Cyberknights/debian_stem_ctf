@@ -2,6 +2,7 @@
 import sys
 import os
 import time
+import signal  # 🔌 Added to handle instant terminal process closure
 
 # === 🎨 STANDARD COLORS (Matches Coach Mode) ===
 class Colors:
@@ -21,8 +22,13 @@ def safe_input(prompt_text: str) -> str:
     try:
         return input(prompt_text)
     except (KeyboardInterrupt, EOFError):
-        sys.stdout.write(f"\n\n{Colors.RED}👋 Exploration session canceled. Returning to terminal environment...{Colors.END}\n")
+        sys.stdout.write(f"\n\n{Colors.RED}👋 Exploration session canceled. Closing window...{Colors.END}\n")
         sys.stdout.flush()
+        # Cleanly close the window immediately if they cancel mid-challenge
+        try:
+            os.kill(os.getppid(), signal.SIGTERM)
+        except Exception:
+            pass
         sys.exit(0)
 
 # === 🛠️ TERMINAL UTILITIES ===
@@ -48,7 +54,17 @@ def pause(prompt=None):
     """Pauses step-by-step execution until the student presses Enter."""
     if prompt is None:
         prompt = f"{Colors.YELLOW}🔸 Press ENTER to continue...{Colors.END}"
+    
     safe_input(prompt)
+    
+    # 🌟 THE ZOMBIE TERMINAL KILL SWITCH:
+    # If the pause message specifically asks to close the terminal, 
+    # signal the parent terminal wrapper to shut down immediately.
+    if prompt and "close this terminal" in prompt.lower():
+        try:
+            os.kill(os.getppid(), signal.SIGTERM)
+        except Exception:
+            pass
 
 def require_input(prompt, expected):
     """Forces the user to type a specific validation phrase to proceed forward."""
