@@ -72,6 +72,7 @@ ctf_takehome/
 1.  **Install contributor environment:**
 
     ```bash
+    sudo apt update && sudo apt install curl -y
     curl -fsSL https://raw.githubusercontent.com/CCRI-Cyberknights/debian_stem_ctf/refs/heads/main/setup_contributor.py | python3 -
     ```
 
