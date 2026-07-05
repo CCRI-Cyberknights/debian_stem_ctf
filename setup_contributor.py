@@ -255,6 +255,13 @@ def setup_desktop_launchers():
         print("   ❌ ERROR: Launcher files missing from repository root!")
         return
 
+    # 🛠️ ICON MIGRATION BLOCK: Drop it right here!
+    # Copy the repository logo asset into the global system icon cache folder
+    icon_src = REPO_ROOT / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
+    if icon_src.exists():
+        run(["sudo", "cp", str(icon_src), "/usr/share/icons/CyberKnights_2.png"])
+        print("   🎨 Global system icon asset registered successfully.")
+
     # 2. Copy the existing files out to their final destinations
     for desktop_dir in target_desktops:
         try:
