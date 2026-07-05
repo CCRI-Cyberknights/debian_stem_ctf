@@ -3,8 +3,8 @@ Version=1.0
 Type=Application
 Terminal=true
 Name=Launch_CCRI_CTF_Hub
-Exec=bash -c "export BROWSER=firefox-esr; cd /home/stem_ctf/Desktop/debian_stem_ctf && .venv/bin/python3 start_web_hub.py"
-Icon=/home/stem_ctf/Desktop/debian_stem_ctf/web_version_admin/static/assets/CyberKnights_2.png
+Exec=bash -c "export BROWSER=firefox-esr; cd ~/Desktop/debian_stem_ctf && .venv/bin/python3 start_web_hub.py"
+Icon=CyberKnights_2
 Name[en_US]=Launch_CCRI_CTF_Hub
 Comment=Launch the Dev Environment for CCRI CTF
 Categories=Utility;
