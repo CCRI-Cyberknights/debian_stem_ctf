@@ -6,6 +6,7 @@ import argparse
 import shlex
 import shutil
 import stat
+import hashlib
 from pathlib import Path
 
 #!/usr/bin/env python3
@@ -248,7 +249,7 @@ def setup_desktop_launchers():
     icon_path = REPO_ROOT / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
     final_icon = str(icon_path) if icon_path.exists() else "utilities-terminal"
 
-    # 2. Define the launcher payloads mapping directly to your execution scripts
+    # 2. Define the exact launcher file templates
     launchers = {
         "Launch_CCRI_CTF_HUB.desktop": f"""[Desktop Entry]
 Version=1.0
@@ -277,10 +278,8 @@ Categories=Utility;
     # 3. Deploy the shortcuts across all destination paths
     for desktop_dir in target_desktops:
         try:
-            # Check if this is the system skeleton directory
             is_skel = "skel" in str(desktop_dir)
             
-            # If it is skel, we must create the path using sudo
             if is_skel:
                 run(["sudo", "mkdir", "-p", str(desktop_dir)])
             else:
@@ -290,17 +289,25 @@ Categories=Utility;
                 dest_path = desktop_dir / filename
                 
                 if is_skel:
-                    # Pipe the file content safely through sudo tee for system storage
+                    # Pipe the skeleton files safely through sudo tee for system storage
                     cmd = f"printf %s {shlex.quote(content)} | sudo tee {shlex.quote(str(dest_path))} >/dev/null"
                     run(cmd)
                     run(["sudo", "chmod", "0755", str(dest_path)])
                 else:
-                    # Standard local write for the active developer desktop
+                    # Native local write for the active developer desktop layout
                     with open(dest_path, "w") as f:
                         f.write(content)
                     os.chmod(dest_path, 0o755)
                     st = os.stat(REPO_ROOT)
                     os.chown(dest_path, st.st_uid, st.st_gid)
+                    
+                    # Calculate the cryptographic digest signature of the file payload strings
+                    hasher = hashlib.sha256()
+                    hasher.update(content.encode('utf-8'))
+                    file_hash = hasher.hexdigest()
+                    
+                    # Programmatically inject the xfce signature directly into the active GIO layer
+                    run(["sudo", "-u", real_user, "gio", "set", "-t", "string", str(dest_path), "metadata::xfce-exe-checksum", file_hash], check=False)
                     
             print(f"   ✅ Successfully deployed shortcuts to: {desktop_dir}")
         except Exception as e:
