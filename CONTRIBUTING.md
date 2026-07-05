@@ -15,11 +15,11 @@ We build three different versions from this single source of truth.
 ### 1. Admin Repo (This Source)
 *The development environment containing all tools and secrets.*
 ```text
-stem_ctf/
+debian_stem_ctf/
 ├── challenges/              # Exploration (.explore.py + .coach.py)
 ├── challenges_solo/         # Solo challenges (README only)
 ├── web_version/             # Student-facing portal
-├── web_version_admin/       # Admin-only validation + templates
+├── web_version_admin/       # Admin-only validation + templates + student version generator
 ├── debs/                    # Debian packages for installation
 ├── flag_generators/         # Scripts to create dynamic flags
 ├── validation_helpers/      # Helper scripts for the validator
@@ -53,7 +53,7 @@ ctf_takehome/
 ### 3. Student VM (Event Day)
 *Deployed via `copy_ccri_ctf.py` to the Student User.*
 ```text
-/home/stem_ctf/Desktop/ccri_ctf/
+/home/stemctf/Desktop/ccri_ctf/
 ├── challenges/              # Guided mode
 ├── challenges_solo/         # Hard mode
 ├── web_version/
