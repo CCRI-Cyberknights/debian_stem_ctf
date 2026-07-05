@@ -63,10 +63,27 @@ def run_validator(challenge_id, mode):
         print(f"⚠️  Skipped: {script_path} not found.")
         return False
 
-    # Setup environment
+    # Define paths for this specific challenge's sandbox container
+    challenge_sandbox = SANDBOX_ROOT / challenge_id
+    
+    # Ensure a clean staging directory exists
+    if challenge_sandbox.exists():
+        shutil.rmtree(challenge_sandbox)
+
+    # Locate generated source data from the active build mode
+    src_folder_name = "challenges_solo" if mode == "solo" else "challenges"
+    source_assets_dir = BASE_DIR / src_folder_name / challenge_id
+
+    # Populate the sandbox container with the challenge assets dynamically
+    if source_assets_dir.is_dir():
+        shutil.copytree(source_assets_dir, challenge_sandbox)
+    else:
+        challenge_sandbox.mkdir(parents=True, exist_ok=True)
+
+    # Setup environment parameters for the isolated sub-process execution
     env = os.environ.copy()
     env["CCRI_MODE"] = mode
-    env["CCRI_SANDBOX"] = str(SANDBOX_ROOT / challenge_id)
+    env["CCRI_SANDBOX"] = str(challenge_sandbox)
 
     try:
         result = subprocess.run(
@@ -84,13 +101,12 @@ def run_validator(challenge_id, mode):
 def main():
     print("🚦 CCRI STEMDay Master Validator\n" + "=" * 40)
     
-    # Check CLI args or prompt for mode
     mode = sys.argv[1].lower() if len(sys.argv) > 1 else choose_mode()
     if mode not in ("guided", "solo"):
         print("❌ Invalid mode. Use: ./validate_all_flags.py [guided|solo]")
         sys.exit(1)
 
-    # Prepare Workspace
+    # Prepare Workspace Root Environment
     if SANDBOX_ROOT.exists():
         shutil.rmtree(SANDBOX_ROOT)
     SANDBOX_ROOT.mkdir()

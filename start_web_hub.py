@@ -36,6 +36,12 @@ def launch_process(cmd, log_file):
             sys.exit(1)
 
 def open_browser():
+    # 🛡️ PIPELINE SAFEGUARD LAYER
+    # Check command-line arguments to see if running under automated verification
+    if "--testing" in sys.argv:
+        print("🌐 Testing environment detected. Skipping browser auto-launch.")
+        return
+
     print("🌐 Opening http://127.0.0.1:5000 ...")
     # Prioritize standard xdg-open for XFCE desktop environment defaults
     if shutil.which("xdg-open"):

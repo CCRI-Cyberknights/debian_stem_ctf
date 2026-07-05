@@ -99,6 +99,6 @@ class HTTPHeaderFlagGenerator:
         while real_flag in fake_flags:
             real_flag = FlagUtils.generate_real_flag()
 
-        self.embed_flags(challenge_folder, real_flag, fake_flags)
+        self.embed_data(challenge_folder, real_flag, fake_flags)
         print(f"✅ {self.mode.capitalize()} flag: {real_flag}")
         return real_flag

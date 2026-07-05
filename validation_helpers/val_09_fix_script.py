@@ -16,8 +16,8 @@ def apply_fix_and_run(script_path: Path, temp_script: Path, operator: str) -> st
         
         lines = temp_script.read_text(encoding="utf-8").splitlines()
         fixed_lines = [
-            f"code = part1 {operator} part2  # <- fixed math" 
-            if "code =" in line and any(op in line for op in ["+", "-", "*", "/"])
+            f"result = part1 {operator} part2  # <- fixed math" 
+            if "result =" in line and any(op in line for op in ["+", "-", "*", "/"])
             else line
             for line in lines
         ]
@@ -62,7 +62,7 @@ def validate() -> bool:
             print(f"✅ Validation success: found flag {expected_flag}")
             return True
         else:
-            print(f"❌ Validation failed: flag {expected_flag} not found in output.", file=sys.stderr)
+            print(f"❌ Validation failed: flag {expected_flag} not found in output. Got output: '{output}'", file=sys.stderr)
             return False
 
     finally:

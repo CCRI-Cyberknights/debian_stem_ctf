@@ -80,13 +80,14 @@ class NmapScanFlagGenerator:
         new_services_block = f"{service_var} = {{\n" + \
                              ",\n".join([f"    {p}: \"{service_names[p]}\"" for p in sorted(service_names)]) + "\n}"
 
-        # Apply Patch
+        # === Apply Patch ===
         content = self.services_file.read_text(encoding="utf-8")
         
         # Helper to replace blocks
         def patch_block(var_name, block_content, text):
             pattern = rf"{var_name}\s*=\s*\{{[^}}]*\}}"
-            new_text, count = re.subn(pattern, block_content, text, flags=re.DOTALL)
+            # Using a lambda function here stops re.subn from expanding '\\n' into a real newline
+            new_text, count = re.subn(pattern, lambda m: block_content, text, flags=re.DOTALL)
             if count == 0:
                 raise RuntimeError(f"Could not patch {var_name}")
             return new_text

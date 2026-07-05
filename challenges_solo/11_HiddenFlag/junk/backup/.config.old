@@ -1,7 +1,8 @@
 user=guest
-last_modified=2019-08-12
-last_modified=2019-08-12
 enable_logging=true
+user=guest
+# Legacy config
+user=guest
+# Legacy config
+NXJH-4402-SHCN
 enable_logging=true
-# [No sensitive data found here]
-last_modified=2019-08-12

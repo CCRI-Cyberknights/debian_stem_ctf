@@ -1,5 +1,5 @@
 enable_logging=true
+# Legacy config
+enable_logging=true
 user=guest
-QBMY-4106-WVXA
-# Legacy configuration file
-user=guest
+enable_logging=true

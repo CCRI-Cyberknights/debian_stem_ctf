@@ -60,7 +60,7 @@ class Base64FlagGenerator:
     def generate_flag(self, challenge_folder: Path) -> str:
         # 1. Generate Flags
         real_flag = FlagUtils.generate_real_flag()
-        fake_flags = FlagUtils.generate_fake_flags(4) # Assuming batch method exists or loop logic
+        fake_flags = FlagUtils.generate_batch(4, is_real=False)
         
         all_flags = fake_flags + [real_flag]
         random.shuffle(all_flags)

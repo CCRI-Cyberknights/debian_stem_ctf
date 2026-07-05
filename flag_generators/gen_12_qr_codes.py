@@ -81,5 +81,5 @@ class QRCodeFlagGenerator:
         while real_flag in fake_flags:
             real_flag = FlagUtils.generate_real_flag()
 
-        self.embed_flags(challenge_folder, real_flag, fake_flags)
+        self.embed_flags_as_qr(challenge_folder, real_flag, fake_flags)
         return real_flag

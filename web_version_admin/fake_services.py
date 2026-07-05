@@ -4,25 +4,23 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # === Simulated Open Ports ===
 GUIDED_FAKE_FLAGS = {
-    8085: "CCRI-UWKT-1905",       # ✅ REAL FLAG
-    8056: "DJRZ-SADS-4449",       # fake
-    8018: "ANHG-ULJA-5510",       # fake
-    8044: "GLZI-8601-HIEG",       # fake
-    8030: "JFXW-THAJ-6456",       # fake
+    8032: "CCRI-UTOH-7108",  # ✅ REAL FLAG
+    8069: "MLSQ-6694-WFAN",
+    8004: "TZUF-QFQY-3965",
+    8098: "WHBE-5909-BYCI",
+    8072: "YHWY-3825-KGHG",
 }
 GUIDED_JUNK_RESPONSES = {
-    8000: "🔒 Unauthorized: API key required.",
-    8003: "System maintenance in progress.",
-    8012: "503 Service Unavailable\nTry again later.",
-    8016: "Hello World!\nTest endpoint active.",
-    8017: "💻 Dev API v0.1 — POST requests only.",
-    8023: "System maintenance in progress.",
-    8026: "System maintenance in progress.",
-    8051: "Python HTTP Server: directory listing not allowed.",
-    8053: "Hello World!\nTest endpoint active.",
-    8069: "DEBUG: Connection established successfully.",
-    8084: "Python HTTP Server: directory listing not allowed.",
-    8092: "Hello World!\nTest endpoint active."
+    8006: "DEBUG: Connection established successfully.",
+    8010: "503 Service Unavailable\nTry again later.",
+    8018: "Welcome to Experimental IoT Server (beta build).",
+    8025: "💡 Tip: Scan only the ports you really need.",
+    8043: "💻 Dev API v0.1 — POST requests only.",
+    8052: "503 Service Unavailable\nTry again later.",
+    8065: "<html><body><h1>It works!</h1><p>Apache2 default page.</p></body></html>",
+    8088: "🔒 Unauthorized: API key required.",
+    8092: "Hello World!\nTest endpoint active.",
+    8094: "403 Forbidden: You don’t have permission to access this resource."
 }
 GUIDED_SERVICE_NAMES = {
     8000: "epsilon-sync",
@@ -44,21 +42,23 @@ GUIDED_SERVICE_NAMES = {
     8092: "omega-stream"
 }
 SOLO_FAKE_FLAGS = {
-    9015: "CCRI-LFSB-7333",       # ✅ REAL FLAG
-    9024: "LHTK-1221-CNNQ",       # fake
-    9075: "PAGS-AVZP-3923",       # fake
-    9034: "OUJF-VQKM-7629",       # fake
-    9094: "MNXZ-SZKI-1612",       # fake
+    9068: "CCRI-SPQE-6486",  # ✅ REAL FLAG
+    9010: "YKGY-0651-NBTC",
+    9094: "CHWR-ATUG-6537",
+    9084: "BDDN-MGJJ-4367",
+    9077: "GDLR-9819-RTYU",
 }
 SOLO_JUNK_RESPONSES = {
-    9016: "💻 Dev API v0.1 — POST requests only.",
-    9025: "Python HTTP Server: directory listing not allowed.",
-    9035: "Error 418: I’m a teapot.",
-    9040: "Welcome to Experimental IoT Server (beta build).",
-    9047: "Welcome to Experimental IoT Server (beta build).",
-    9076: "💡 Tip: Scan only the ports you really need.",
-    9081: "Hello World!\nTest endpoint active.",
-    9085: "Hello World!\nTest endpoint active."
+    9006: "403 Forbidden: You don’t have permission to access this resource.",
+    9025: "ERROR 400: Bad request syntax.",
+    9038: "Hello World!\nTest endpoint active.",
+    9045: "Welcome to Dev HTTP Server v1.3\nPlease login to continue.",
+    9049: "<html><body><h1>It works!</h1><p>Apache2 default page.</p></body></html>",
+    9055: "Welcome to Dev HTTP Server v1.3\nPlease login to continue.",
+    9059: "Welcome to Dev HTTP Server v1.3\nPlease login to continue.",
+    9088: "Hello World!\nTest endpoint active.",
+    9089: "403 Forbidden: You don’t have permission to access this resource.",
+    9099: "503 Service Unavailable\nTry again later."
 }
 SOLO_SERVICE_NAMES = {
     9015: "metricsd",

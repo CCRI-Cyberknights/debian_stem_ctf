@@ -1,18 +1,8 @@
 #!/usr/bin/env python3
 
-import argparse
 import sys
-import shutil
 import json
 from pathlib import Path
-
-# === Import backend classes ===
-# Assuming web_version_admin exists; keeping your imports for continuity
-try:
-    sys.path.insert(0, str(Path(__file__).resolve().parent / "web_version_admin"))
-    from ChallengeList import ChallengeList
-except ImportError:
-    print("⚠️ Note: ChallengeList not found. Proceeding with generator registry.")
 
 # === Import all generators ===
 from flag_generators.gen_01_stego import StegoFlagGenerator
@@ -70,11 +60,17 @@ class FlagGenerationManager:
         # Files
         self.challenges_dir = self.project_root / ("challenges" if mode == "guided" else "challenges_solo")
         self.unlocks_file = self.project_root / "web_version_admin" / (f"validation_unlocks{'_solo' if mode == 'solo' else ''}.json")
+        self.web_db_file = self.project_root / "web_version_admin" / (f"challenges{'_solo' if mode == 'solo' else ''}.json")
         
         self.validation_unlocks = {}
         if self.unlocks_file.exists():
             with open(self.unlocks_file, "r") as f:
                 self.validation_unlocks = json.load(f)
+
+        self.web_db_challenges = {}
+        if self.web_db_file.exists():
+            with open(self.web_db_file, "r") as f:
+                self.web_db_challenges = json.load(f)
 
     @staticmethod
     def _find_project_root():
@@ -100,6 +96,11 @@ class FlagGenerationManager:
                 
                 # Update Metadata
                 self.validation_unlocks[challenge_id] = gen.metadata
+                
+                # Sync Admin Web Hub JSON profiles directly with the raw plaintext flags
+                if challenge_id in self.web_db_challenges:
+                    self.web_db_challenges[challenge_id]["flag"] = real_flag
+                    
                 success_count += 1
                 print(f"✅ Finished {challenge_id}")
                 
@@ -107,8 +108,14 @@ class FlagGenerationManager:
                 print(f"❌ Failed {challenge_id}: {e}")
 
         if not self.dry_run:
+            # Save validation data files for the master validator processes
             save_json(self.unlocks_file, self.validation_unlocks)
-            print(f"\n🎉 Saved {success_count} challenges to {self.unlocks_file.name}")
+            print(f"🎉 Saved {success_count} challenges to {self.unlocks_file.name}")
+            
+            # Save the fresh plaintext data tracking matrix for the admin web view modules
+            if self.web_db_challenges:
+                save_json(self.web_db_file, self.web_db_challenges)
+                print(f"🌐 Synchronized live Web Hub database file: {self.web_db_file.name}")
 
 # --- Entry Point ---
 if __name__ == "__main__":

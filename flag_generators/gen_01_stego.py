@@ -106,5 +106,14 @@ class StegoFlagGenerator:
         # Embed logic
         self.embed_flags(challenge_folder, real_flag, fake_flags, self.last_password)
         
+        # Populate the metadata map completely for the validator registry
+        self.metadata = {
+            "real_flag": real_flag,
+            "last_password": self.last_password,  #  Added this line so the validator can read it
+            "challenge_file": str((challenge_folder / "squirrel.jpg").relative_to(self.project_root)),
+            "unlock_method": "Extract the hidden file using steghide with the passphrase found in the EXIF metadata.",
+            "hint": "Run exiftool squirrel.jpg to look for comment metadata, then use steghide embed/extract routines."
+        }
+
         print(f"✅ {self.mode.capitalize()} mode generated.")
         return real_flag

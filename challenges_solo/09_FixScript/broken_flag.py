@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-# This script should print: CCRI-SCRP-6402
-# But someone broke the math!
+# This script should print: CCRI-SCRP-9342
+# But the math operator is broken.
 
-part1 = 291
-part2 = 22
+part1 = 10263
+part2 = 921
 
 # MATH ERROR!
-code = part1 + part2  # <- wrong math
+# Fix the operator to get the correct flag.
+result = part1 / part2 
 
-print(f"Your flag is: CCRI-SCRP-{int(code)}")
+print(f"Your flag is: CCRI-SCRP-{int(result)}")

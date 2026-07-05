@@ -110,9 +110,9 @@ def pip_install():
     run(["python3", "-m", "venv", str(venv_dir)])
     venv_pip = venv_dir / "bin" / "pip"
     
-    print("📚 Installing Flask and MarkupSafe, and Markdown safely inside the venv...")
+    print("📚 Installing Flask, MarkupSafe, Requests and Markdown safely inside the venv...")
     run([str(venv_pip), "install", "--upgrade", "pip"])
-    run([str(venv_pip), "install", "flask", "markupsafe", "markdown"])
+    run([str(venv_pip), "install", "flask", "markupsafe", "requests", "markdown"])
 
 # ---------- zsteg ----------
 def install_zsteg():
@@ -255,7 +255,7 @@ def main():
         "exiftool", "zbar-tools", "hashcat", "unzip", "steghide",  # Native apt steghide tracking
         "nmap", "qrencode", "vim-common", "util-linux",
         "binwalk", "fcrackzip", "john", "imagemagick", "hexedit", "feh",
-        "p7zip-full", "ncat",
+        "p7zip-full", "ncat", "xxd",
     ]
     apt_install_packages(apt_packages)
 
