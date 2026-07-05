@@ -8,7 +8,6 @@ import pwd
 from pathlib import Path
 
 # === Configuration ===
-TARGET_USER = "stem_ctf"
 TARGET_FOLDER_NAME = "ccri_ctf_solo"
 
 INCLUDE_ITEMS = [
@@ -66,22 +65,32 @@ def setup_launcher(target_desktop: Path, uid: int, gid: int):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 def main():
-    # 1. Elevation
+    # 1. Elevation Pass
     if os.geteuid() != 0:
         os.execvp("sudo", ["sudo", "python3"] + sys.argv)
 
-    # 2. Identify User
+    # 2. Identify Target User Dynamically
+    # Capture the non-root calling context via SUDO_USER environment checks
+    target_user = os.environ.get("SUDO_USER")
+    if not target_user:
+        file_uid = Path(__file__).resolve().stat().st_uid
+        if file_uid != 0:
+            target_user = pwd.getpwuid(file_uid).pw_name
+        else:
+            print("❌ Could not automatically determine the target user. Please run via 'sudo user script.py'.")
+            sys.exit(1)
+
     try:
-        pw = pwd.getpwnam(TARGET_USER)
+        pw = pwd.getpwnam(target_user)
         uid, gid = pw.pw_uid, pw.pw_gid
     except KeyError:
-        print(f"❌ Target user '{TARGET_USER}' not found.")
+        print(f"❌ Target user '{target_user}' lookup failed system registration checks.")
         sys.exit(1)
 
     source_root = Path(__file__).resolve().parent
-    target_root = Path(f"/home/{TARGET_USER}/Desktop/{TARGET_FOLDER_NAME}")
+    target_root = Path(f"/home/{target_user}/Desktop/{TARGET_FOLDER_NAME}")
 
-    print(f"📂 Source: {source_root}\n📥 Target: {target_root}")
+    print(f"📂 Source: {source_root}\n📥 Target: {target_root} (User: {target_user})")
 
     # 3. Clean and Copy
     if target_root.exists():
@@ -106,7 +115,7 @@ def main():
     apply_permissions(target_root, uid, gid)
     setup_launcher(target_root.parent, uid, gid)
 
-    print(f"\n✅ Solo-Only Version Deployed to {target_root}")
+    print(f"\n✅ Solo-Only Version Deployed Smoothly to {target_root}")
 
 if __name__ == "__main__":
     main()

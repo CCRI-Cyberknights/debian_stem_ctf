@@ -9,7 +9,6 @@ import grp
 from pathlib import Path
 
 # === Configuration ===
-TARGET_USER = "stem_ctf"
 TARGET_GROUP = "ccri_ctf"
 TARGET_FOLDER_NAME = "ccri_ctf"
 
@@ -28,7 +27,10 @@ def ensure_group_membership(group_name: str, usernames: list):
         subprocess.run(["groupadd", group_name], check=True)
 
     for user in usernames:
-        subprocess.run(["usermod", "-aG", group_name, user], check=True)
+        try:
+            subprocess.run(["usermod", "-aG", group_name, user], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️ Could not add user {user} to group {group_name}: {e}")
     
     return grp.getgrnam(group_name).gr_gid
 
@@ -44,8 +46,11 @@ def apply_permissions(path: Path, uid: int, gid: int):
         
         for name in files:
             p = current / name
-            os.chown(p, uid, gid)
-            os.chmod(p, 0o775 if is_script(name) else 0o664)
+            try:
+                os.chown(p, uid, gid)
+                os.chmod(p, 0o775 if is_script(name) else 0o664)
+            except OSError as e:
+                print(f"⚠️ Could not set perms for {p}: {e}")
 
 def setup_launcher(target_desktop: Path, uid: int, gid: int):
     """Generates the .desktop launcher."""
@@ -57,6 +62,7 @@ def setup_launcher(target_desktop: Path, uid: int, gid: int):
         "Name=Launch CCRI CTF Hub\n"
         f"Exec=bash -c 'cd $HOME/Desktop/{TARGET_FOLDER_NAME} && python3 start_web_hub.py'\n"
         f"Icon={icon if icon.exists() else 'utilities-terminal'}\n"
+        "Comment=Start the CyberKnights Challenge Hub\n"
     )
     
     launcher.write_text(content, encoding="utf-8")
@@ -68,32 +74,38 @@ def setup_launcher(target_desktop: Path, uid: int, gid: int):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 def main():
-    # 1. Elevation & User Checks
+    # 1. Elevation Pass
     if os.geteuid() != 0:
         print("🛡️ Elevation required. Re-running with sudo...")
         os.execvp("sudo", ["sudo", "python3"] + sys.argv)
 
-    invoking_user = os.environ.get("SUDO_USER")
-    if not invoking_user:
-        print("❌ Could not detect invoking user. Run via sudo.")
-        sys.exit(1)
+    # 2. Identify Target User Dynamically
+    target_user = os.environ.get("SUDO_USER")
+    if not target_user:
+        file_uid = Path(__file__).resolve().stat().st_uid
+        if file_uid != 0:
+            target_user = pwd.getpwuid(file_uid).pw_name
+        else:
+            print("❌ Could not automatically determine the target user. Please run via 'sudo user script.py'.")
+            sys.exit(1)
 
     try:
-        pw = pwd.getpwnam(TARGET_USER)
-        uid, gid = pw.pw_uid, pw.pw_gid
+        pw = pwd.getpwnam(target_user)
+        uid = pw.pw_uid
     except KeyError:
-        print(f"❌ Target user '{TARGET_USER}' not found.")
+        print(f"❌ Target user '{target_user}' lookup failed system registration checks.")
         sys.exit(1)
 
-    ensure_group_membership(TARGET_GROUP, [TARGET_USER, invoking_user])
+    # Resolve shared permission groups dynamically using the calling user account context
+    gid = ensure_group_membership(TARGET_GROUP, [target_user])
 
-    # 2. Path Prep
+    # 3. Path Prep
     source_root = Path(__file__).resolve().parent
-    target_root = Path(f"/home/{TARGET_USER}/Desktop/{TARGET_FOLDER_NAME}")
+    target_root = Path(f"/home/{target_user}/Desktop/{TARGET_FOLDER_NAME}")
 
-    print(f"📂 Source: {source_root}\n📥 Target: {target_root}")
+    print(f"📂 Source: {source_root}\n📥 Target: {target_root} (User: {target_user}, Group GID: {gid})")
 
-    # 3. Clean and Copy
+    # 4. Clean and Copy
     if target_root.exists():
         shutil.rmtree(target_root)
     
@@ -108,10 +120,11 @@ def main():
             else:
                 shutil.copy2(src, target_root / item)
 
-    # 4. Finalize
+    # 5. Finalize
     # Copy icon if available
     icon_src = source_root / "web_version_admin/static/assets/CyberKnights_2.png"
     if icon_src.exists():
+        print("🎨 Copying icon...")
         shutil.copy2(icon_src, target_root / "icon.png")
 
     apply_permissions(target_root, uid, gid)

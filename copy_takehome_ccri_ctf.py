@@ -8,7 +8,6 @@ import pwd
 from pathlib import Path
 
 # === Configuration ===
-TARGET_USER = "stem_ctf"
 TARGET_FOLDER_NAME = "ctf_takehome"
 
 # Items to copy (relative to source_root)
@@ -72,16 +71,26 @@ def main():
 
     source_root = Path(__file__).resolve().parent
     
-    # 2. Identify Target
+    # 2. Identify Target User Dynamically
+    # Look for the user who called sudo, fallback to the owner of the script files if called in a direct root shell
+    target_user = os.environ.get("SUDO_USER")
+    if not target_user:
+        file_uid = Path(__file__).resolve().stat().st_uid
+        if file_uid != 0:
+            target_user = pwd.getpwuid(file_uid).pw_name
+        else:
+            print("❌ Could not automatically determine the target user. Please run via 'sudo user script.py'.")
+            sys.exit(1)
+
     try:
-        pw_record = pwd.getpwnam(TARGET_USER)
+        pw_record = pwd.getpwnam(target_user)
         uid, gid = pw_record.pw_uid, pw_record.pw_gid
     except KeyError:
-        print(f"❌ User '{TARGET_USER}' not found.")
+        print(f"❌ Target user '{target_user}' lookup failed system registration checks.")
         sys.exit(1)
 
-    target_root = Path(f"/home/{TARGET_USER}/Desktop/{TARGET_FOLDER_NAME}")
-    print(f"📂 Source: {source_root}\n📥 Target: {target_root}")
+    target_root = Path(f"/home/{target_user}/Desktop/{TARGET_FOLDER_NAME}")
+    print(f"📂 Source: {source_root}\n📥 Target: {target_root} (User: {target_user})")
 
     # 3. Create Root & Markers
     target_root.mkdir(parents=True, exist_ok=True)
@@ -110,16 +119,16 @@ def main():
     launcher = target_root / "Launch_CCRI_CTF_HUB.desktop"
     generate_launcher(launcher)
     
-    # Final chown for the launcher (apply_permissions covers the dir, but just to be safe)
+    # Final chown for the launcher
     os.chown(launcher, uid, gid) 
     
-    # Trust launcher
+    # Trust launcher via GIO
     try:
         subprocess.run(["gio", "set", str(launcher), "metadata::trusted", "true"], check=False)
     except Exception:
         pass
 
-    print(f"\n✅ Take-home version deployed to {target_root}")
+    print(f"\n✅ Take-home version deployed smoothly to {target_root}")
 
 if __name__ == "__main__":
     main()
