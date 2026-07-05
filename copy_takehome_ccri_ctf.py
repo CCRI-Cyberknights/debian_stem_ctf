@@ -108,7 +108,7 @@ def main():
     try:
         # Uses the parent workspace environment to download the packages cleanly
         subprocess.run([
-            "/home/debian/Desktop/debian_stem_ctf/.venv/bin/pip", "download", 
+            "/home/stemctf/Desktop/debian_stem_ctf/.venv/bin/pip", "download", 
             "-d", str(wheels_dst), "flask", "requests", "markdown"
         ], check=True)
     except Exception as e:
