@@ -1,8 +1,5 @@
 user=guest
+# Legacy config
 enable_logging=true
 user=guest
-# Legacy config
 user=guest
-# Legacy config
-NXJH-4402-SHCN
-enable_logging=true

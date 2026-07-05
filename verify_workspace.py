@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import json
+import ast
 import subprocess
 import urllib.request
 from pathlib import Path
@@ -37,6 +38,65 @@ def wait_for_server(url: str, timeout: int = 5) -> bool:
                     return True
         except Exception:
             time.sleep(0.5)
+    return False
+
+def run_static_analysis_stage(step_num: int, root_dir: Path) -> bool:
+    print_banner(f"STAGE {step_num}: Challenge Script Static Structure Analysis")
+    
+    # Locate challenges directory structure
+    challenges_dir = root_dir / "web_version_admin" / "challenges"
+    if not challenges_dir.is_dir():
+        challenges_dir = root_dir / "challenges"
+        if not challenges_dir.is_dir():
+            challenges_dir = root_dir
+
+    failures = 0
+    print(f"\n🔍 Scanning python challenge assets within: {challenges_dir}")
+    print("-" * 60)
+
+    for current_root, _, files in os.walk(challenges_dir):
+        for file in files:
+            if not file.endswith(".py") or file.startswith("."):
+                continue
+            
+            file_path = Path(current_root) / file
+            try:
+                source = file_path.read_text(encoding="utf-8")
+                tree = ast.parse(source)
+                
+                # Look for a 'main' function definition block
+                has_main_def = any(
+                    isinstance(node, ast.FunctionDef) and node.name == 'main'
+                    for node in tree.body
+                )
+                
+                if has_main_def:
+                    # Verify that main() is actually called somewhere in the file
+                    has_main_call = False
+                    for node in ast.walk(tree):
+                        if (isinstance(node, ast.Call) and 
+                            isinstance(node.func, ast.Name) and 
+                            node.func.id == 'main'):
+                            has_main_call = True
+                            break
+                    
+                    if not has_main_call:
+                        print(f"{RED}❌ STRUCTURAL ERROR: {file_path.relative_to(root_dir)}{RESET}")
+                        print(f"   -> Defines main() but lacks an execution block hook at the bottom!\n")
+                        failures += 1
+                        continue
+                        
+            except SyntaxError as e:
+                print(f"{RED}💥 SYNTAX ERROR: {file_path.relative_to(root_dir)}{RESET}")
+                print(f"   -> Line {e.lineno}: {e.msg}\n")
+                failures += 1
+            except Exception as e:
+                print(f"{YELLOW}⚠️  READ ERROR: {file_path.relative_to(root_dir)}: {e}{RESET}\n")
+
+    if failures == 0:
+        print(f"\n{GREEN}✅ Static Structure Analysis Phase Finished Successfully!{RESET}")
+        return True
+    print(f"\n{RED}❌ Static Structure Analysis Phase Failed with {failures} anomalies.{RESET}", file=sys.stderr)
     return False
 
 def run_subprocess_stage(step_num: int, name: str, script_name: str, root_dir: Path, args: list = None) -> bool:
@@ -96,11 +156,9 @@ def run_web_matrix_stage(step_num: int, root_dir: Path) -> bool:
         print(f"\n🌐 Probing Web Matrix: [{mode.upper()}]")
         print("-" * 50)
 
-        # 🔄 Establish a persistent state session context for this mode block
         session = requests.Session()
         web_mode = "regular" if mode == "guided" else "solo"
         
-        # Initialize the server-side session cookie state
         try:
             session.get(f"{BASE_URL}/set_mode/{web_mode}", timeout=2)
         except requests.RequestException as e:
@@ -132,7 +190,6 @@ def run_web_matrix_stage(step_num: int, root_dir: Path) -> bool:
                 
                 res = session.post(submit_url, json=payload, timeout=2)
                 
-                # Fixed the string check to look for "correct" to match the server's response
                 if res.status_code != 200 or "correct" not in res.text.lower():
                     print(f"❌ Flag Validation Rejected: {challenge_id} ({mode})")
                     print(f"   -> HTTP Status: {res.status_code}")
@@ -164,14 +221,18 @@ def main():
         print(f"\n{RED}{BOLD}🚨 PIPELINE BREAK: Generation failed. Aborting infrastructure verification.{RESET}", file=sys.stderr)
         sys.exit(1)
 
+    # --- STAGE 2: Static Structure Analysis ---
+    static_success = run_static_analysis_stage(2, root_dir)
+    if not static_success:
+        print(f"\n{RED}{BOLD}🚨 PIPELINE BREAK: Structural code validation failed. Aborting pipeline.{RESET}", file=sys.stderr)
+        sys.exit(1)
+
     # --- SERVER LIFECYCLE START ---
     print(f"\n{BLUE}{BOLD}🌐 Initializing Background Web Hub for Live Challenge Validation...{RESET}")
     
-    # Open a file descriptor to catch startup errors
     boot_log_path = root_dir / ".server_boot.log"
     boot_log = boot_log_path.open("w", encoding="utf-8")
 
-    # Pass --testing directly as a command line argument
     web_process = subprocess.Popen(
         [sys.executable, str(root_dir / "start_web_hub.py"), "--testing"],
         stdout=boot_log,
@@ -179,7 +240,10 @@ def main():
         cwd=root_dir
     )
 
-    stage_results = [("Asset & Flag Random Generation", True)]
+    stage_results = [
+        ("Asset & Flag Random Generation", True),
+        ("Challenge Script Static Structure Analysis", True)
+    ]
     web_server_live = False
 
     try:
@@ -187,7 +251,7 @@ def main():
             print(f"{GREEN}✅ Environment services successfully verified as active and listening.{RESET}")
             web_server_live = True
         else:
-            boot_log.close() # Close it so we can read it
+            boot_log.close() 
             print(f"{RED}❌ CRITICAL: Web Hub failed to bind within the window limit.{RESET}", file=sys.stderr)
             print(f"{YELLOW}📄 Reading Web Hub boot stderr output logs below:{RESET}\n" + "-"*60, file=sys.stderr)
             print(boot_log_path.read_text(encoding="utf-8", errors="ignore"), file=sys.stderr)
@@ -200,21 +264,21 @@ def main():
             ])
 
         if web_server_live:
-            # --- STAGE 2: Guided Forensic Validation ---
-            guided_success = run_subprocess_stage(2, "Guided Forensic Key Extraction", "validate_all_flags.py", root_dir, ["guided"])
+            # --- STAGE 3: Guided Forensic Validation ---
+            guided_success = run_subprocess_stage(3, "Guided Forensic Key Extraction", "validate_all_flags.py", root_dir, ["guided"])
             stage_results.append(("Guided Forensic Key Extraction", guided_success))
             
-            # --- STAGE 3: Solo Forensic Validation ---
+            # --- STAGE 4: Solo Forensic Validation ---
             if guided_success:
-                solo_success = run_subprocess_stage(3, "Solo Verification Simulation", "validate_all_flags.py", root_dir, ["solo"])
+                solo_success = run_subprocess_stage(4, "Solo Verification Simulation", "validate_all_flags.py", root_dir, ["solo"])
                 stage_results.append(("Solo Verification Simulation", solo_success))
             else:
                 solo_success = False
                 stage_results.append(("Solo Verification Simulation", False))
 
-            # --- STAGE 4: Inline Web Matrix & Endpoint Probe ---
+            # --- STAGE 5: Inline Web Matrix & Endpoint Probe ---
             if solo_success:
-                matrix_success = run_web_matrix_stage(4, root_dir)
+                matrix_success = run_web_matrix_stage(5, root_dir)
                 stage_results.append(("Web Matrix Routing & API Probe", matrix_success))
             else:
                 stage_results.append(("Web Matrix Routing & API Probe", False))
@@ -230,7 +294,6 @@ def main():
             
         subprocess.run([sys.executable, str(root_dir / "stop_web_hub.py")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
-        # Clean up temporary boot log file
         if boot_log_path.exists():
             boot_log_path.unlink()
         print("🔒 Network sockets closed and workspace cleaned.")
@@ -246,7 +309,7 @@ def main():
         status_text = f"{GREEN}PASS{RESET}" if status else f"{RED}FAIL{RESET}"
         if not status:
             all_passed = False
-        print(f" * {name:<40} -> [{status_text}]")
+        print(f" * {name:<42} -> [{status_text}]")
 
     print("-" * 60)
     if all_passed:

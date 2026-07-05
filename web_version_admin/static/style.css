@@ -28,8 +28,9 @@ a:hover {
     text-decoration: underline;
 }
 
+/* Changed from dark purple to a visible dimmed yellow for dark mode legibility */
 a:visited {
-    color: #6a009b;
+    color: #b3a900;
 }
 
 /* =========================================
@@ -117,7 +118,8 @@ a:visited {
    ========================================= */
 .view-btn,
 .home-btn,
-.view-btn-link {
+.view-btn-link,
+.view-btn-link:visited {
     margin: 8px;
     padding: 10px 16px;
     border: none;
@@ -139,7 +141,8 @@ a:visited {
 
 .view-btn:hover,
 .home-btn:hover,
-.view-btn-link:hover {
+.view-btn-link:hover,
+.view-btn-link:visited:hover {
     background: linear-gradient(135deg, #6a009b, #48006a);
     color: #ffffff;
     text-decoration: none;

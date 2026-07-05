@@ -27,10 +27,11 @@ def safe_input(prompt_text: str) -> str:
 
 # === 🛠️ TERMINAL UTILITIES ===
 def resize_terminal(rows=35, cols=90):
-    """Forces the terminal window viewport to a standard standardized size geometry."""
-    sys.stdout.write(f"\x1b[8;{rows};{cols}t")
-    sys.stdout.flush()
-    time.sleep(0.2)
+    """
+    Neutralized to allow the Window Manager and --maximize flag 
+    to handle responsive scaling across different monitor resolutions.
+    """
+    pass  # Keeps the terminal beautifully full-screen instead of forcing small pixel boundaries
 
 def clear_screen():
     """Wipes the active terminal screen space clean."""

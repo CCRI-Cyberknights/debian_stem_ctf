@@ -92,3 +92,6 @@ def main():
             print("💡 Hint: Search Google for 'most common passwords'.\n")
             # Clear invalid extraction artifacts safely via standard unlink rules
             output_path.unlink(missing_ok=True)
+
+if __name__ == "__main__":
+    main()

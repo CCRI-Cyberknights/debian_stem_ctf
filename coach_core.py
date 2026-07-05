@@ -65,25 +65,17 @@ class Coach:
             print(f"❌ Error: Missing configuration target: {self.worker_script}")
             sys.exit(1)
             
-        # Target XFCE terminal emulators natively available on the host layout
-        terminal = shutil.which("xfce4-terminal") or shutil.which("x-terminal-emulator")
-        if not terminal:
-            print("❌ Error: No suitable terminal emulator discovered on host environment.")
-            sys.exit(1)
-            
-        # Unified command array mapping directly to the active sandbox interpreter context
+        # Instruct tmux to split the active window horizontally (-h)
+        # It automatically sets a 50/50 viewport alignment and executes the worker node script
         cmd = [
-            terminal, 
-            "--geometry=90x35+1000+100", 
-            f"--title=Worker: {self.challenge_name}", 
-            "--", 
+            "tmux", "split-window", "-h", 
             sys.executable, str(self.worker_script), str(self.port)
         ]
         
         try:
             self.worker_process = subprocess.Popen(cmd)
         except Exception as e:
-            print(f"❌ Failed to launch terminal instance interface: {e}")
+            print(f"❌ Failed to split tmux layout for worker node: {e}")
             sys.exit(1)
 
     def _clean_files(self, file_list):

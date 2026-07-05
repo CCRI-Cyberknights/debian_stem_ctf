@@ -234,16 +234,26 @@ def run_script(challenge_id):
     if selectedChallenge is None:
         return jsonify({"status": "error", "message": "Challenge not found"}), 404
 
-    script_path = selectedChallenge.getScript()
+    # Resolve pure absolute paths for the execution targets
+    folder_path = os.path.abspath(selectedChallenge.getFolder())
+    script_path = os.path.abspath(selectedChallenge.getScript())
     
-    # Dynamic terminal lookup optimized for XFCE environment targets
     terminal = shutil.which("xfce4-terminal") or shutil.which("x-terminal-emulator")
     if not terminal:
         return jsonify({"status": "error", "message": "No suitable terminal emulator discovered on host."}), 500
 
     try:
         if "xfce4-terminal" in terminal:
-            subprocess.Popen([terminal, "--", sys.executable, script_path])
+            # Stage the window environment first, then drop the working -x switch last
+            subprocess.Popen([
+                terminal,
+                "--maximize",
+                "--hold",  # Keeps the terminal frame open if the student scripts crash
+                f"--working-directory={folder_path}",
+                f"--title=CyberKnights Sandbox: {selectedChallenge.getName()}",
+                "-x",
+                sys.executable, script_path
+            ])
         else:
             subprocess.Popen([terminal, "-e", f"{sys.executable} {script_path}"])
         return jsonify({"status": "success", "message": "Helper script started"})
@@ -262,11 +272,11 @@ def run_coach(challenge_id):
     if selectedChallenge is None:
         return jsonify({"status": "error", "message": "Challenge not found"}), 404
 
-    script_path = os.path.join(selectedChallenge.getFolder(), '.coach.py')
+    folder_path = selectedChallenge.getFolder()
+    script_path = os.path.join(folder_path, '.coach.py')
     if not os.path.exists(script_path):
         return jsonify({"status": "error", "message": "Coach script not found for this challenge."}), 404
 
-    # Dynamic terminal lookup optimized for XFCE environment targets
     terminal = shutil.which("xfce4-terminal") or shutil.which("x-terminal-emulator")
     if not terminal:
         return jsonify({"status": "error", "message": "No suitable terminal emulator discovered on host."}), 500
@@ -275,16 +285,16 @@ def run_coach(challenge_id):
         if "xfce4-terminal" in terminal:
             subprocess.Popen([
                 terminal,
-                "--geometry=90x35+50+100",
-                "--title=Coach Mode: " + selectedChallenge.getName(),
-                "--",
-                sys.executable, script_path
-            ])
+                "--maximize",
+                "--title=CCRI CyberKnights Training Hub",
+                "-x",
+                "tmux", "new-session", f"{sys.executable} {script_path}"
+            ], cwd=folder_path)  # <--- Aligns the coach working directory context as well
         else:
             subprocess.Popen([
                 terminal,
-                "-e", f"{sys.executable} {script_path}"
-            ])
+                "-e", f"tmux new-session '{sys.executable} {script_path}'"
+            ], cwd=folder_path)
         return jsonify({"status": "success", "message": "Coach terminal launched"})
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to run coach: {e}"}), 500

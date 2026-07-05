@@ -255,7 +255,7 @@ def main():
         "exiftool", "zbar-tools", "hashcat", "unzip", "steghide",  # Native apt steghide tracking
         "nmap", "qrencode", "vim-common", "util-linux",
         "binwalk", "fcrackzip", "john", "imagemagick", "hexedit", "feh",
-        "p7zip-full", "ncat", "xxd",
+        "p7zip-full", "ncat", "xxd", "tmux",
     ]
     apt_install_packages(apt_packages)
 
