@@ -8,6 +8,24 @@ import shutil
 import stat
 from pathlib import Path
 
+# ==============================================================================
+# 🎛️ DUAL-COMPATIBILITY CONTEXT ENGINE
+# ==============================================================================
+# Detect if the script is being executed directly via an internet pipe (curl)
+IS_PIPED = "__file__" not in globals() or __file__ == "<stdin>" or not os.path.exists(__file__)
+
+if IS_PIPED:
+    # Handle curl execution: fall back to evaluating active path layout rules
+    if Path.cwd().name == "debian_stem_ctf":
+        REPO_ROOT = Path.cwd()
+    else:
+        REPO_ROOT = Path.cwd() / "debian_stem_ctf"
+else:
+    # Handle standard clone execution: locate native file parent coordinates
+    REPO_ROOT = Path(__file__).resolve().parent
+
+# ==============================================================================
+
 APT_ENV = {
     **os.environ,
     "DEBIAN_FRONTEND": "noninteractive",
@@ -104,8 +122,7 @@ def preseed_wireshark_and_install():
 # ---------- Python / pip Virtual Environment ----------
 def pip_install():
     print("🐍 Creating isolated virtual environment...")
-    repo_root = Path(__file__).resolve().parent
-    venv_dir = repo_root / ".venv"
+    venv_dir = REPO_ROOT / ".venv"
     
     run(["python3", "-m", "venv", str(venv_dir)])
     venv_pip = venv_dir / "bin" / "pip"
@@ -191,19 +208,16 @@ def configure_git(git_name=None, git_email=None):
 # ---------- XFCE Styling Engine ----------
 def configure_xfce_cyber_theme():
     print("🎨 Sculpting the XFCE desktop layout into a security profile...")
-    # Anchor the standard top toolbar (Panel 1) to the upper display rail
     run(["xfconf-query", "-c", "xfce4-panel", "-p", "/panels/panel-1/position", "-s", "p=6;x=0;y=0"], check=False)
     run(["xfconf-query", "-c", "xfce4-panel", "-p", "/panels/panel-1/length", "-s", "100"], check=False)
-    # Inject slight alpha transparency into native XFCE terminal windows
     run(["xfconf-query", "-c", "xfce4-terminal", "-p", "/background-darkness", "-n", "-t", "double", "-s", "0.95"], check=False)
     print("✅ XFCE workspace structural layout adjusted.")
 
 # ---------- Desktop Launcher Setup ----------
 def setup_desktop_launcher():
     print("📎 Configuring desktop launcher for Main Repo...")
-    repo_root = Path(__file__).resolve().parent
-    icon_path = repo_root / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
-    launcher_path = repo_root / "Launch_CCRI_CTF_HUB.desktop"
+    icon_path = REPO_ROOT / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
+    launcher_path = REPO_ROOT / "Launch_CCRI_CTF_HUB.desktop"
 
     final_icon = str(icon_path) if icon_path.exists() else "utilities-terminal"
     
@@ -212,7 +226,7 @@ Version=1.0
 Type=Application
 Terminal=true
 Name=Launch_CCRI_CTF_Hub
-Exec=bash -c "cd {repo_root} && .venv/bin/python3 start_web_hub.py"
+Exec=bash -c "cd {REPO_ROOT} && .venv/bin/python3 start_web_hub.py"
 Icon={final_icon}
 Name[en_US]=Launch_CCRI_CTF_Hub
 Comment=Launch the Dev Environment for CCRI CTF
@@ -223,8 +237,10 @@ Categories=Utility;
             f.write(content)
         os.chmod(launcher_path, 0o755)
         
-        uid = os.stat(__file__).st_uid
-        gid = os.stat(__file__).st_gid
+        # Resolve real system owner properties safely based on the repo root folder path
+        st = os.stat(REPO_ROOT)
+        uid = st.st_uid
+        gid = st.st_gid
         os.chown(launcher_path, uid, gid)
         print("✅ Launcher updated to target sandbox venv interpreter.")
     except Exception as e:
@@ -251,13 +267,18 @@ def main():
         "fonts-noto-color-emoji",
         "python3-markdown", "python3-scapy",
         "curl", "lsof", "xdg-utils", "libglib2.0-bin",
-        "xfce4-terminal", "xfce4-goodies",  # Swapped GNOME assets for native XFCE modules
-        "exiftool", "zbar-tools", "hashcat", "unzip", "steghide",  # Native apt steghide tracking
+        "xfce4-terminal", "xfce4-goodies",
+        "exiftool", "zbar-tools", "hashcat", "unzip", "steghide",
         "nmap", "qrencode", "vim-common", "util-linux",
         "binwalk", "fcrackzip", "john", "imagemagick", "hexedit", "feh",
         "p7zip-full", "ncat", "xxd", "tmux",
     ]
     apt_install_packages(apt_packages)
+
+    # Automatically clone the core repository code if executed via curl pipe sequence
+    if IS_PIPED and not REPO_ROOT.exists():
+        print("📥 Piped execution detected and repository missing. Cloning main repository automatically...")
+        run(["git", "clone", "https://github.com/CCRI-Cyberknights/debian_stem_ctf.git", str(REPO_ROOT)])
 
     ensure_john_and_helpers_on_path()
     install_cyberchef_offline()
