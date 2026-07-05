@@ -251,8 +251,12 @@ if __name__ == "__main__":
 
 def main():
     print("🚀 Starting Web Version Build Process (Modular Auto-Compile)...")
-    # Clean, scalable parent resolution replacing hardcoded string joins
+    
+    # 🛠️ UPDATED PATH LOGIC:
+    # Since the script lives in 'web_version_admin', going up 2 parent levels 
+    # maps perfectly to the main 'debian_stem_ctf' root folder.
     base_dir = Path(__file__).resolve().parent.parent
+    
     prepare_web_version(base_dir)
     print("✅ Build process finished successfully.")
     input("\n📖 Press ENTER to exit compile interface...")
