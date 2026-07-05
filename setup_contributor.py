@@ -277,18 +277,28 @@ Categories=Utility;
     # 3. Deploy the shortcuts across all destination paths
     for desktop_dir in target_desktops:
         try:
-            desktop_dir.mkdir(parents=True, exist_ok=True)
+            # Check if this is the system skeleton directory
+            is_skel = "skel" in str(desktop_dir)
+            
+            # If it is skel, we must create the path using sudo
+            if is_skel:
+                run(["sudo", "mkdir", "-p", str(desktop_dir)])
+            else:
+                desktop_dir.mkdir(parents=True, exist_ok=True)
             
             for filename, content in launchers.items():
                 dest_path = desktop_dir / filename
                 
-                with open(dest_path, "w") as f:
-                    f.write(content)
-                    
-                os.chmod(dest_path, 0o755)
-                
-                # Assign file ownership properly if deploying to the host user's folder
-                if "skel" not in str(desktop_dir):
+                if is_skel:
+                    # Pipe the file content safely through sudo tee for system storage
+                    cmd = f"printf %s {shlex.quote(content)} | sudo tee {shlex.quote(str(dest_path))} >/dev/null"
+                    run(cmd)
+                    run(["sudo", "chmod", "0755", str(dest_path)])
+                else:
+                    # Standard local write for the active developer desktop
+                    with open(dest_path, "w") as f:
+                        f.write(content)
+                    os.chmod(dest_path, 0o755)
                     st = os.stat(REPO_ROOT)
                     os.chown(dest_path, st.st_uid, st.st_gid)
                     
