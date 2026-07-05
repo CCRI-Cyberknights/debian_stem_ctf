@@ -36,36 +36,31 @@ def launch_process(cmd, log_file):
             sys.exit(1)
 
 def open_browser():
+    # 🛡️ PIPELINE SAFEGUARD LAYER
     if "--testing" in sys.argv:
         print("🌐 Testing environment detected. Skipping browser auto-launch.")
         return
 
     print("🌐 Opening http://127.0.0.1:5000 ...")
     
-    # Establish a clean debug log directly on the visual workspace
-    debug_log = os.path.expanduser("~/Desktop/browser_debug.log")
-    
-    with open(debug_log, "a") as f:
-        f.write(f"\n=== BROWSER LAUNCH ATTEMPT: {time.ctime()} ===\n")
-        f.flush()
+    # 🛡️ PROCESS DETACHMENT LAYER
+    # We must enforce preexec_fn=os.setpgrp across ALL pathways so the 
+    # child launcher survives when the parent deployment script exits.
+    if shutil.which("xdg-open"):
+        subprocess.Popen(["xdg-open", "http://127.0.0.1:5000"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, 
+                         preexec_fn=os.setpgrp)
+        return
         
-        # 1. Try standard xdg-open protocol handler
-        if shutil.which("xdg-open"):
-            print("💻 Spawning xdg-open (routing output to browser_debug.log)...")
-            subprocess.Popen(["xdg-open", "http://127.0.0.1:5000"], stdout=f, stderr=f)
+    for binary in ("firefox-esr", "firefox"):
+        browser_path = shutil.which(binary)
+        if browser_path:
+            subprocess.Popen([browser_path, "--new-window", "http://127.0.0.1:5000"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, 
+                             preexec_fn=os.setpgrp)
             return
             
-        # 2. Fallback: Search explicitly for both Debian and generic binary profiles
-        for binary in ("firefox-esr", "firefox"):
-            browser_path = shutil.which(binary)
-            if browser_path:
-                print(f"💻 Spawning {binary} natively (routing output to browser_debug.log)...")
-                subprocess.Popen([browser_path, "--new-window", "http://127.0.0.1:5000"], 
-                                 stdout=f, stderr=f, preexec_fn=os.setpgrp)
-                return
-                
-        print("❌ No browser launcher found. Open manually: http://127.0.0.1:5000")
-        f.write("❌ Error: No viable browser binary identified on system PATH.\n")
+    print("❌ No browser launcher found. Open manually: http://127.0.0.1:5000")
 
 def main():
     project_root = find_project_root()
