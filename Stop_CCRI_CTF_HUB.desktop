@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=true
+Name=Stop_CCRI_CTF_Hub
+Exec=bash -c "cd {REPO_ROOT} && .venv/bin/python3 stop_web_hub.py"
+Icon=process-stop
+Name[en_US]=Stop_CCRI_CTF_Hub
+Comment=Stop the Dev Environment for CCRI CTF
+Categories=Utility;

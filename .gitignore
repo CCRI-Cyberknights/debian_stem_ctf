@@ -12,6 +12,7 @@
 !/.ccri_ctf_root
 !/markdown-cheat-sheet.md
 !/Launch_CCRI_CTF_HUB.desktop
+!/Stop_CCRI_CTF_HUB.desktop
 
 # 4. Whitelist Top-level Scripts
 !/*.py

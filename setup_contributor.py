@@ -8,22 +8,41 @@ import shutil
 import stat
 from pathlib import Path
 
+#!/usr/bin/env python3
+import os
+import sys
+import subprocess
+import argparse
+import shlex
+import shutil
+import stat
+from pathlib import Path
+
 # ==============================================================================
-# 🎛️ DUAL-COMPATIBILITY CONTEXT ENGINE
+# 🎛️ DUAL-COMPATIBILITY CONTEXT ENGINE (DESKTOP OPTIMIZED)
 # ==============================================================================
 # Detect if the script is being executed directly via an internet pipe (curl)
 IS_PIPED = "__file__" not in globals() or __file__ == "<stdin>" or not os.path.exists(__file__)
 
+# Safely resolve the real user's home and desktop paths across sudo boundaries
+REAL_USER = os.environ.get("SUDO_USER") or os.environ.get("USER") or "stem_ctf"
+USER_HOME = Path(f"/home/{REAL_USER}") if REAL_USER != "root" else Path.home()
+DESKTOP_DIR = USER_HOME / "Desktop"
+
 if IS_PIPED:
-    # Handle curl execution: fall back to evaluating active path layout rules
+    # If they are already manually inside a repo folder, anchor there
     if Path.cwd().name == "debian_stem_ctf":
         REPO_ROOT = Path.cwd()
     else:
-        REPO_ROOT = Path.cwd() / "debian_stem_ctf"
+        # Otherwise, route the clone target directly onto their visual desktop
+        REPO_ROOT = DESKTOP_DIR / "debian_stem_ctf"
 else:
-    # Handle standard clone execution: locate native file parent coordinates
+    # Handle standard local execution inside an already cloned repository folder
     REPO_ROOT = Path(__file__).resolve().parent
 
+# Ensure the Desktop directory actually exists before trying to write to it
+if IS_PIPED and not Path(REPO_ROOT).parent.exists():
+    Path(REPO_ROOT).parent.mkdir(parents=True, exist_ok=True)
 # ==============================================================================
 
 APT_ENV = {
@@ -214,14 +233,24 @@ def configure_xfce_cyber_theme():
     print("✅ XFCE workspace structural layout adjusted.")
 
 # ---------- Desktop Launcher Setup ----------
-def setup_desktop_launcher():
-    print("📎 Configuring desktop launcher for Main Repo...")
-    icon_path = REPO_ROOT / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
-    launcher_path = REPO_ROOT / "Launch_CCRI_CTF_HUB.desktop"
-
-    final_icon = str(icon_path) if icon_path.exists() else "utilities-terminal"
+def setup_desktop_launchers():
+    print("📎 Configuring desktop start and stop launchers for Main Repo...")
     
-    content = f"""[Desktop Entry]
+    # 1. Resolve the correct target desktop paths safely across sudo boundaries
+    real_user = os.environ.get("SUDO_USER") or os.environ.get("USER") or "stem_ctf"
+    user_home = Path(f"/home/{real_user}") if real_user != "root" else Path.home()
+    
+    target_desktops = [
+        user_home / "Desktop",
+        Path("/etc/skel/Desktop")
+    ]
+    
+    icon_path = REPO_ROOT / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
+    final_icon = str(icon_path) if icon_path.exists() else "utilities-terminal"
+
+    # 2. Define the launcher payloads mapping directly to your execution scripts
+    launchers = {
+        "Launch_CCRI_CTF_HUB.desktop": f"""[Desktop Entry]
 Version=1.0
 Type=Application
 Terminal=true
@@ -231,20 +260,41 @@ Icon={final_icon}
 Name[en_US]=Launch_CCRI_CTF_Hub
 Comment=Launch the Dev Environment for CCRI CTF
 Categories=Utility;
+""",
+        "Stop_CCRI_CTF_HUB.desktop": f"""[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=true
+Name=Stop_CCRI_CTF_Hub
+Exec=bash -c "cd {REPO_ROOT} && .venv/bin/python3 stop_web_hub.py"
+Icon=process-stop
+Name[en_US]=Stop_CCRI_CTF_Hub
+Comment=Stop the Dev Environment for CCRI CTF
+Categories=Utility;
 """
-    try:
-        with open(launcher_path, "w") as f:
-            f.write(content)
-        os.chmod(launcher_path, 0o755)
-        
-        # Resolve real system owner properties safely based on the repo root folder path
-        st = os.stat(REPO_ROOT)
-        uid = st.st_uid
-        gid = st.st_gid
-        os.chown(launcher_path, uid, gid)
-        print("✅ Launcher updated to target sandbox venv interpreter.")
-    except Exception as e:
-        print(f"⚠️  Could not update launcher: {e}")
+    }
+
+    # 3. Deploy the shortcuts across all destination paths
+    for desktop_dir in target_desktops:
+        try:
+            desktop_dir.mkdir(parents=True, exist_ok=True)
+            
+            for filename, content in launchers.items():
+                dest_path = desktop_dir / filename
+                
+                with open(dest_path, "w") as f:
+                    f.write(content)
+                    
+                os.chmod(dest_path, 0o755)
+                
+                # Assign file ownership properly if deploying to the host user's folder
+                if "skel" not in str(desktop_dir):
+                    st = os.stat(REPO_ROOT)
+                    os.chown(dest_path, st.st_uid, st.st_gid)
+                    
+            print(f"   ✅ Successfully deployed shortcuts to: {desktop_dir}")
+        except Exception as e:
+            print(f"   ⚠️  Could not write launchers to {desktop_dir}: {e}")
 
 # ---------- CLI ----------
 def parse_args():
@@ -286,7 +336,7 @@ def main():
     install_zsteg()
     configure_git(args.git_name, args.git_email)
     configure_xfce_cyber_theme()
-    setup_desktop_launcher()
+    setup_desktop_launchers()
 
     print("\n✅ Base environment ready.")
     print("   • Admin run (dev):   .venv/bin/python3 web_version_admin/server.py")
