@@ -235,9 +235,9 @@ def configure_xfce_cyber_theme():
 
 # ---------- Desktop Launcher Setup ----------
 def setup_desktop_launchers():
-    print("📎 Configuring desktop start and stop launchers for Main Repo...")
+    print("📎 Deploying desktop launchers directly from repository source files...")
     
-    # 1. Resolve the correct target desktop paths safely across sudo boundaries
+    # 1. Resolve target desktop coordinates safely across sudo boundaries
     real_user = os.environ.get("SUDO_USER") or os.environ.get("USER") or "stem_ctf"
     user_home = Path(f"/home/{real_user}") if real_user != "root" else Path.home()
     
@@ -246,69 +246,44 @@ def setup_desktop_launchers():
         Path("/etc/skel/Desktop")
     ]
     
-    icon_path = REPO_ROOT / "web_version_admin" / "static" / "assets" / "CyberKnights_2.png"
-    final_icon = str(icon_path) if icon_path.exists() else "utilities-terminal"
+    # Define source paths pointing to your tracked repository files
+    repo_launch = REPO_ROOT / "Launch_CCRI_CTF_HUB.desktop"
+    repo_stop = REPO_ROOT / "Stop_CCRI_CTF_HUB.desktop"
 
-    # 2. Define the launcher payloads mapping directly to your execution scripts
-    launchers = {
-        "Launch_CCRI_CTF_HUB.desktop": f"""[Desktop Entry]
-Version=1.0
-Type=Application
-Terminal=true
-Name=Launch_CCRI_CTF_Hub
-Exec=bash -c "export BROWSER=firefox-esr; cd {REPO_ROOT} && .venv/bin/python3 start_web_hub.py"
-Icon={final_icon}
-Name[en_US]=Launch_CCRI_CTF_Hub
-Comment=Launch the Dev Environment for CCRI CTF
-Categories=Utility;
-""",
-        "Stop_CCRI_CTF_HUB.desktop": f"""[Desktop Entry]
-Version=1.0
-Type=Application
-Terminal=true
-Name=Stop_CCRI_CTF_Hub
-Exec=bash -c "cd {REPO_ROOT} && .venv/bin/python3 stop_web_hub.py"
-Icon=process-stop
-Name[en_US]=Stop_CCRI_CTF_Hub
-Comment=Stop the Dev Environment for CCRI CTF
-Categories=Utility;
-"""
-    }
+    # Safety check to make sure git clone brought them down successfully
+    if not repo_launch.exists() or not repo_stop.exists():
+        print("   ❌ ERROR: Launcher files missing from repository root!")
+        return
 
-    # 3. Deploy the shortcuts across all destination paths
+    # 2. Copy the existing files out to their final destinations
     for desktop_dir in target_desktops:
         try:
             is_skel = "skel" in str(desktop_dir)
             
             if is_skel:
+                # Use privileged copies for root-owned system skeleton space
                 run(["sudo", "mkdir", "-p", str(desktop_dir)])
+                run(["sudo", "cp", str(repo_launch), str(desktop_dir / "Launch_CCRI_CTF_HUB.desktop")])
+                run(["sudo", "cp", str(repo_stop), str(desktop_dir / "Stop_CCRI_CTF_HUB.desktop")])
+                run(["sudo", "chmod", "0755", str(desktop_dir / "Launch_CCRI_CTF_HUB.desktop")])
+                run(["sudo", "chmod", "0755", str(desktop_dir / "Stop_CCRI_CTF_HUB.desktop")])
             else:
+                # Standard unprivileged file copies for your live developer desktop layout
                 desktop_dir.mkdir(parents=True, exist_ok=True)
-            
-            for filename, content in launchers.items():
-                dest_path = desktop_dir / filename
+                dest_launch = desktop_dir / "Launch_CCRI_CTF_HUB.desktop"
+                dest_stop = desktop_dir / "Stop_CCRI_CTF_HUB.desktop"
                 
-                if is_skel:
-                    # Pipe the skeleton files safely through sudo tee for system storage
-                    cmd = f"printf %s {shlex.quote(content)} | sudo tee {shlex.quote(str(dest_path))} >/dev/null"
-                    run(cmd)
-                    run(["sudo", "chmod", "0755", str(dest_path)])
-                else:
-                    # Native local write for the active developer desktop layout
-                    with open(dest_path, "w") as f:
-                        f.write(content)
-                    os.chmod(dest_path, 0o755)
-                    st = os.stat(REPO_ROOT)
-                    os.chown(dest_path, st.st_uid, st.st_gid)
-                    
-                    # Calculate the cryptographic digest signature of the file payload strings
-                    hasher = hashlib.sha256()
-                    hasher.update(content.encode('utf-8'))
-                    file_hash = hasher.hexdigest()
-                    
-                    # Programmatically inject the xfce signature directly into the active GIO layer
-                    run(["sudo", "-u", real_user, "gio", "set", "-t", "string", str(dest_path), "metadata::xfce-exe-checksum", file_hash], check=False)
-                    
+                shutil.copy(repo_launch, dest_launch)
+                shutil.copy(repo_stop, dest_stop)
+                
+                os.chmod(dest_launch, 0o755)
+                os.chmod(dest_stop, 0o755)
+                
+                # Match file permissions cleanly to the repository folder owner attributes
+                st = os.stat(REPO_ROOT)
+                os.chown(dest_launch, st.st_uid, st.st_gid)
+                os.chown(dest_stop, st.st_uid, st.st_gid)
+                
             print(f"   ✅ Successfully deployed shortcuts to: {desktop_dir}")
         except Exception as e:
             print(f"   ⚠️  Could not write launchers to {desktop_dir}: {e}")
