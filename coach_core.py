@@ -29,14 +29,29 @@ class Coach:
         self._setup_autocomplete()
 
     def _setup_autocomplete(self):
-        """Configures readline to autocomplete filenames when TAB is pressed."""
+        """Configures readline to autocomplete filenames dynamically across challenge directories."""
         def path_completer(text, state):
-            # 1. Get list of files matching the input 'text'
-            options = glob.glob(text + '*')
-            # 2. Add a trailing slash to directories for better UX
-            options = [x + ("/" if os.path.isdir(x) else "") for x in options]
-            # 3. Return the match based on state (readline requirement)
-            return (options + [None])[state]
+            matches = []
+            
+            # 1. Gather matches from the local directory where the script runs
+            for p in glob.glob(text + '*'):
+                matches.append((p, p))
+                
+            # 2. Deep-scan challenge subfolders so files like 'encoded.txt' resolve automatically
+            challenge_pattern = os.path.join(str(self.root_dir), 'challenges', '*', text + '*')
+            for p in glob.glob(challenge_pattern):
+                # If the user typed a flat file name, show just the file name; otherwise show the relative path
+                display = os.path.basename(p) if '/' not in text else os.path.relpath(p, os.getcwd())
+                matches.append((p, display))
+            
+            # Deduplicate options and cleanly append trailing slashes to directories
+            options = {}
+            for full_path, display_name in matches:
+                if display_name not in options:
+                    suffix = "/" if os.path.isdir(full_path) else ""
+                    options[display_name] = display_name + suffix
+                    
+            return (list(options.values()) + [None])[state]
 
         # Use space as the delimiter (so 'cat file' completes 'file', not 'cat file')
         readline.set_completer_delims(' \t\n;')
