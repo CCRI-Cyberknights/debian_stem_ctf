@@ -49,12 +49,13 @@ def safe_copy(src: Path, dst: Path):
         shutil.copy2(src, dst)
 
 def generate_launcher(launcher_dst: Path, target_user: str):
-    """Generates the .desktop file with an absolute icon path."""
+    """Generates the .desktop file with an absolute icon path and hidden terminal state."""
     work_dir = f"$HOME/Desktop/{TARGET_FOLDER_NAME}"
     absolute_icon = f"/home/{target_user}/Desktop/{TARGET_FOLDER_NAME}/icon.png"
     
+    # Terminal=false stops an accidental window closure from tearing down the local Flask instance
     content = (
-        "[Desktop Entry]\nVersion=1.0\nType=Application\nTerminal=true\n"
+        "[Desktop Entry]\nVersion=1.0\nType=Application\nTerminal=false\n"
         "Name=Launch CCRI CTF Hub (Take-Home)\n"
         f"Exec=bash -c 'cd \"{work_dir}\" && python3 start_web_hub.py'\n"
         f"Icon={absolute_icon}\n"
@@ -106,9 +107,10 @@ def main():
     wheels_dst.mkdir(parents=True, exist_ok=True)
     print("📦 Downloading offline dependency wheelhouse cache...")
     try:
-        # Uses the parent workspace environment to download the packages cleanly
+        # Dynamically maps to the active environment path instead of a static user home layout
+        local_pip = source_root / ".venv" / "bin" / "pip"
         subprocess.run([
-            "/home/stemctf/Desktop/debian_stem_ctf/.venv/bin/pip", "download", 
+            str(local_pip), "download", 
             "-d", str(wheels_dst), "flask", "requests", "markdown"
         ], check=True)
     except Exception as e:
@@ -181,7 +183,7 @@ def main():
     print("🌐 Launching training hub browser window...")
     try:
         subprocess.Popen(
-            ["bash", "-c", "sleep 1.5 && xdg-open http://127.0.0.1:5000"],
+            ["bash", "-c", "sleep 1.5 && xdg-open [http://127.0.0.1:5000](http://127.0.0.1:5000)"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
