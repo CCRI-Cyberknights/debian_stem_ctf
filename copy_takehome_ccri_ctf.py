@@ -149,13 +149,46 @@ def generate_bootstrap_start_script(dst_path: Path):
 import os
 import sys
 import subprocess
+import shutil
 from pathlib import Path
+
+def open_browser():
+    """Safely launches the browser in a detached process group."""
+    if "--testing" in sys.argv:
+        print("🌐 Testing environment detected. Skipping browser auto-launch.")
+        return
+
+    print("🌐 Opening http://127.0.0.1:5000 ...")
+    
+    if shutil.which("xdg-open"):
+        subprocess.Popen(
+            ["xdg-open", "http://127.0.0.1:5000"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            preexec_fn=os.setpgrp
+        )
+        return
+
+    for binary in ("firefox-esr", "firefox"):
+        browser_path = shutil.which(binary)
+        if browser_path:
+            subprocess.Popen(
+                [browser_path, "--new-window", "http://127.0.0.1:5000"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                preexec_fn=os.setpgrp
+            )
+            return
+
+    print("❌ No browser launcher found. Open manually: http://127.0.0.1:5000")
 
 def main():
     base_dir = Path(__file__).resolve().parent
     venv_dir = base_dir / ".venv"
     wheels_dir = base_dir / "wheels"
+    venv_python = venv_dir / "bin" / "python3"
 
+    # 1. Provision offline venv if missing
     if not venv_dir.exists():
         print("📦 Initializing localized offline challenge runtime engine...")
         try:
@@ -173,23 +206,22 @@ def main():
             print(f"❌ Critical Error during offline environment creation: {e}")
             sys.exit(1)
 
-    venv_python = venv_dir / "bin" / "python3"
+    # 2. Hot-swap into the virtual environment Python interpreter BEFORE doing anything else
+    if os.path.exists(venv_python) and os.path.abspath(sys.executable) != os.path.abspath(venv_python):
+        os.execv(str(venv_python), [str(venv_python)] + sys.argv)
+
+    # --- Everything below runs strictly inside the active .venv ---
+
     zipapp_path = base_dir / "ccri_ctf.pyz"
-    
     if not zipapp_path.exists():
         print("❌ Error: ccri_ctf.pyz platform execution binary is missing.")
         sys.exit(1)
-        
-    print("🌐 Launching training hub browser window...")
-    try:
-        subprocess.Popen(
-            ["bash", "-c", "sleep 1.5 && xdg-open [http://127.0.0.1:5000](http://127.0.0.1:5000)"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-    except Exception:
-        pass
 
+    # 3. Trigger browser launch in a detached process group
+    open_browser()
+
+    # 4. Launch the zipapp directly
+    print("🚀 Launching CCRI CTF Take-Home Platform...")
     os.execv(str(venv_python), [str(venv_python), str(zipapp_path)])
 
 if __name__ == "__main__":
